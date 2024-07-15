@@ -14,11 +14,10 @@ Official implementation of SketchMol.
 	3. python
 	4. 
 
-
-Some of the code is built from ( ) ( ), thanks to their extraordinary work.
+#### Some of the code is built from ( ) ( ), thanks to their extraordinary work.
 
 # Contact
-If you have any questions, please feel free to contact [Zixu Wang](s2230167@u.tsukuba.ac.jp).
+	If you have any questions, please feel free to contact [Zixu Wang](s2230167@u.tsukuba.ac.jp).
 
 # License
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+	This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
