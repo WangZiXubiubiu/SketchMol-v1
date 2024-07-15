@@ -4,15 +4,22 @@ Official implementation of SketchMol.
 	Clone the repository: git clone https://github.com/WangZiXubiubi/SketchMol-v1.git
 	cd SketchMol-v1
 	pip install -r requirements.txt
-
+	conda activate sketchmol
+ 
 # Usage 
-	python generate_molecules.py
+## Example: Sample from molecule property logp=2 MW=350 (Supports up to 7 attributes LogP,QED,MW,TPSA,HBD,HBA,RB)
+	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/sample_diffusion_condition_continuousV2.py -p "LogP:2 MW:350" -r /path/model.ckpt
+## Example: Inpaint molecule logp=2 MW=350
+	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/sample_diffusion_condition_continuousV2.py -p "LogP:2" -r /path/model.ckpt
 
 # Train your own SketchMol
-	1. python
-	2. python
-	3. python
-	4. 
+## Stage0: Creating images (by RDKit)
+	python 
+## Stage1: Train autoencoder 
+	CUDA_VISIBLE_DEVICES=<gpu_ids> python main.py --base configs/autoencoder/autoencoder_kl_pubchem400w_32x32x4.yaml -t --gpus 0,
+## Stage2: Train diffusion model
+	CUDA_VISIBLE_DEVICES=<gpu_ids> python main.py --base configs/ld_molecules/pubchem400w_conditional_various_continuous_32x32x4.yaml -t --gpus 0,
+## Stage3: 
 
 #### Some of the code is built from ( ) ( ), thanks to their extraordinary work.
 
