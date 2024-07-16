@@ -12,7 +12,7 @@ Official implementation of SketchMol.
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/inpaint_continuousV2.py -p "MW:300" -r /path/model.ckpt --validation_dataset /path/dataset.csv
 #### Batch conversion from images: The image recognition tool used in this work comes from MolScribe:github.com/thomas0809/MolScribe. We provide a method for batch recognition from CSV. Please use the ckpt provided by MolScribe for recognition. Thanks for their excellent work.
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python evaluate/predict_csv.py --model_path ./ckpt_from_molscribe/swin_base_char_aux_200k.pth --image_path path_to_your_generated_csv.csv
-#### Evaluate the generated results 
+#### Evaluate the generated results (input the csv path this file)
  	python evaluate/low_quality_image_various_condtion_continuousV2.py
  
 # Train your own SketchMol
