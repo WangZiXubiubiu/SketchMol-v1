@@ -12,6 +12,8 @@ Official implementation of SketchMol.
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/inpaint_continuousV2.py -p "MW:300" -r /path/model.ckpt --validation_dataset /path/dataset.csv
 #### Batch conversion from images: The image recognition tool used in this work comes from MolScribe:github.com/thomas0809/MolScribe. We provide a method for batch recognition from CSV. Please use the ckpt provided by MolScribe for recognition. Thanks for their excellent work.
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python evaluate/predict_csv.py --model_path ./ckpt_from_molscribe/swin_base_char_aux_200k.pth --image_path path_to_your_generated_csv.csv
+#### Evaluate the generated results 
+ 	python evaluate/low_quality_image_various_condtion_continuousV2.py
  
 # Train your own SketchMol
 ## Stage0: Creating images (by RDKit) 
@@ -36,9 +38,14 @@ Official implementation of SketchMol.
   	python evaluate/low_quality_image_various_condtion_continuousV2.py # output csv containing all the unsuitable ones
    
    	# 4. adjust the diffusion model: paste the csv into sampled_invalid_image_path in the yaml (dataset class) & finetune the model (1-2 times is enough but you can repeat this process)
+    		train:
+      			target: ldm.data.pubchemdata.pubchem400wTrain_various_continuousV2
+      			params:
+        			size: 256
+	   			sampled_invalid_image_path: path_to_your_undesired_images.csv
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python main.py --base configs/ld_molecules/pubchem400w_conditional_various_continuous_32x32x4.yaml -t --gpus 0,
 
-#### Some of the code is built from LDM:github.com/CompVis/latent-diffusion & MolScribe:github.com/thomas0809/MolScribe. Thanks for their excellent work。 You can cite them if you find it useful.
+#### Some of the code is built from LDM:github.com/CompVis/latent-diffusion & MolScribe:github.com/thomas0809/MolScribe. Thanks for their excellent work. 
 
 # Contact
 If you have any questions, please feel free to contact [Zixu Wang](s2230167@u.tsukuba.ac.jp).
