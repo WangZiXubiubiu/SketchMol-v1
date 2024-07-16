@@ -6,7 +6,7 @@ Official implementation of SketchMol.
 	pip install -r requirements.txt
 	conda activate sketchmol
 
-## Example: Sample from molecule property logp=2.5 MW=300 (Supports up to 7 attributes LogP,QED,MW,TPSA,HBD,HBA,RB)
+## Example: Sample from molecule property logp=2.5 MW=300 (Supports up to 7 attributes LogP, QED, MW, TPSA, HBD, HBA, RB)
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/sample_diffusion_condition_continuousV2.py -p "LogP:2.5 MW:300" -r /path/model.ckpt
 ## Example: Inpaint molecule MW=300
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/inpaint_continuousV2.py -p "MW:300" -r /path/model.ckpt --validation_dataset /path/dataset.csv
