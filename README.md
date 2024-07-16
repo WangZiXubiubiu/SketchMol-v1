@@ -9,7 +9,7 @@ Official implementation of SketchMol.
 ## Example: Sample from molecule property logp=2.5 MW=300 (Supports up to 7 attributes LogP, QED, MW, TPSA, HBD, HBA, RB)
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/sample_diffusion_condition_continuousV2.py -p "LogP:2.5 MW:300" -r /path/model.ckpt
 ## Example: Inpaint molecule MW=300
-	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/inpaint_continuousV2.py -p "MW:300" -r /path/model.ckpt --validation_dataset /path/dataset.csv
+	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/inpaint_continuousV2.py -p "MW:300" -r /path/model.ckpt --validation_dataset /path/dataset.csv --mask_from_where mol_various_preset
 #### Batch conversion from images: The image recognition tool used in this work comes from MolScribe:github.com/thomas0809/MolScribe. We provide a method for batch recognition from CSV. Please use the ckpt provided by MolScribe for recognition. Thanks for their excellent work.
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python evaluate/predict_csv.py --model_path ./ckpt_from_molscribe/swin_base_char_aux_200k.pth --image_path path_to_your_generated_csv.csv
 #### Evaluate the generated results (input the csv path this file)
