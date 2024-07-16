@@ -26,15 +26,16 @@ Official implementation of SketchMol.
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python main.py --base configs/ld_molecules/pubchem400w_conditional_various_continuous_32x32x4.yaml -t --gpus 0,
 ## Stage3: Adjust diffusion model (RLME, Provide molecules that do not meet the criteria for fine-tuning the diffusion model. ）
 ### This is the process in the article for physichemical-constrained molecular generation. You can adjust this process according to the tasks you expect. It is not necessary to integrate external models into the diffusion model; it is sufficient for the external models to provide assessments only.
-	# sample some images from current model
+	# 1. sample some images from current model
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/sample_diffusion_condition_continuousV2.py -r /path/model.ckpt --conditional_count 40 --condition_type mol_various_validation_from_dataset --proerty_num 3
 
   	# Finding unsuitable molecular images
-	CUDA_VISIBLE_DEVICES=<gpu_ids> python evaluate/predict_csv.py --model_path ./ckpt_from_molscribe/swin_base_char_aux_200k.pth --image_path path_to_your_generated_csv.csv # extract molecule from images
- 	# paste all the generated images to low_quality_image_various_condtion_continuousV2.py
+   	# 2. extract molecule from images
+	CUDA_VISIBLE_DEVICES=<gpu_ids> python evaluate/predict_csv.py --model_path ./ckpt_from_molscribe/swin_base_char_aux_200k.pth --image_path path_to_your_generated_csv.csv 
+ 	# 3. evaluate properties: paste the csv into evaluate/low_quality_image_various_condtion_continuousV2.py
   	python evaluate/low_quality_image_various_condtion_continuousV2.py # output csv containing all the unsuitable ones
    
-   	# paste the csv into sampled_invalid_image_path in the yaml (dataset class) & finetune the model (1-2 times is enough but you can repeat this process)
+   	# 4. adjust the diffusion model: paste the csv into sampled_invalid_image_path in the yaml (dataset class) & finetune the model (1-2 times is enough but you can repeat this process)
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python main.py --base configs/ld_molecules/pubchem400w_conditional_various_continuous_32x32x4.yaml -t --gpus 0,
 
 #### Some of the code is built from LDM:github.com/CompVis/latent-diffusion & MolScribe:github.com/thomas0809/MolScribe. Thanks for their excellent work。 You can cite them if you find it useful.
