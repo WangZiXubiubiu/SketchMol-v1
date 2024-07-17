@@ -16,7 +16,7 @@ Official implementation of SketchMol.
  	python evaluate/low_quality_image_various_condtion_continuousV2.py
  
 # Train your own SketchMol
-## Stage0: Creating images (by RDKit) 
+## Stage0: Create images (by RDKit) 
 #### It is recommended to increase the number of CPUs by adjust --num_workers to accelerate the generation process. Please input the path where you want to save the training images.
 	python ./data_process/mp_mol_image_generation_for_diffusion.py --num_workers 10 --path_ori path_to_your_directory # image generation
 	python ./data_process/mp_scaffold_ori_generation.py --num_workers 10 --path_ori path_to_your_directory # you can also generate scaffold images 
