@@ -38,11 +38,13 @@ Official implementation of SketchMol.
   	python evaluate/low_quality_image_various_condtion_continuousV2.py # output csv containing all the unsuitable ones. 
    
    	# 4. adjust the diffusion model: paste the csv into sampled_invalid_image_path in the yaml (dataset class) & finetune the model (1-2 times is enough)
-	train:
-		target: ldm.data.pubchemdata.pubchem400wTrain_various_continuousV2
+	###
+ 	train:
+		#target: ldm.data.pubchemdata.pubchem400wTrain_various_continuousV2
 		params:
 			size: 256
 			sampled_invalid_image_path: path_to_your_undesired_images.csv
+   	###
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python main.py --base configs/ld_molecules/pubchem400w_conditional_various_continuous_32x32x4.yaml -t --gpus 0,
 
 #### Some of the code is built from LDM:github.com/CompVis/latent-diffusion & MolScribe:github.com/thomas0809/MolScribe. Thanks for their excellent work. 
