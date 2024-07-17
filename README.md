@@ -6,10 +6,10 @@ Official implementation of SketchMol.
 	pip install -r requirements.txt
 	conda activate sketchmol
 
-## Example: Sample from molecule property logp=2.5 MW=300 (Supports up to 7 attributes LogP, QED, MW, TPSA, HBD, HBA, RB)
-	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/sample_diffusion_condition_continuousV2.py -p "LogP:2.5 MW:300" -r /path/model.ckpt
-## Example: Inpaint molecule MW=300
-	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/inpaint_continuousV2.py -p "MW:300" -r /path/model.ckpt --validation_dataset /path/dataset.csv --mask_from_where mol_various_preset
+## Example: Sample from molecule property logp=2.5 TPSA=70 (Supports up to 7 attributes LogP, QED, MW, TPSA, HBD, HBA, RB)
+	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/sample_diffusion_condition_continuousV2.py -p "LogP:2.5 TPSA:70" -r /path/model.ckpt
+## Example: Inpaint molecule MW=500
+	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/inpaint_continuousV2.py -p "MW:500" -r /path/model.ckpt --validation_dataset /path/example_inpaint.csv --mask_from_where mol_various_preset
 #### Batch conversion from images: The image recognition tool used in this work comes from MolScribe:github.com/thomas0809/MolScribe. We provide a method for batch recognition from CSV. Please use the ckpt provided by MolScribe for recognition. Thanks for their excellent work.
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python evaluate/predict_csv.py --model_path ./ckpt_from_molscribe/swin_base_char_aux_200k.pth --image_path path_to_your_generated_csv.csv
 #### Evaluate the generated results (input the csv path this file)
@@ -26,7 +26,7 @@ Official implementation of SketchMol.
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python main.py --base configs/autoencoder/autoencoder_kl_pubchem400w_32x32x4.yaml -t --gpus 0,
 ## Stage2: Train diffusion model (don't forget load the autoencoder ckpt in yaml)
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python main.py --base configs/ld_molecules/pubchem400w_conditional_various_continuous_32x32x4.yaml -t --gpus 0,
-## Stage3: Adjust diffusion model (RLME, Provide molecules that do not meet the criteria for fine-tuning the diffusion model. ）
+## Stage3: Adjust diffusion model (RLME, Provide molecules that do not meet the expectations for fine-tuning the diffusion model. ）
 ### This is the process in the article for physichemical-constrained molecular generation. You can adjust this process according to the tasks you expect. It is not necessary to integrate external models into the diffusion model; it is sufficient for the external models to provide assessments only.
 	# 1. sample some images from current model
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/sample_diffusion_condition_continuousV2.py -r /path/model.ckpt --conditional_count 40 --condition_type mol_various_validation_from_dataset --proerty_num 3
@@ -35,7 +35,7 @@ Official implementation of SketchMol.
    	# 2. extract molecule from images
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python evaluate/predict_csv.py --model_path ./ckpt_from_molscribe/swin_base_char_aux_200k.pth --image_path path_to_your_generated_csv.csv 
  	# 3. evaluate properties: paste the csv into evaluate/low_quality_image_various_condtion_continuousV2.py
-  	python evaluate/low_quality_image_various_condtion_continuousV2.py # output csv containing all the unsuitable ones
+  	python evaluate/low_quality_image_various_condtion_continuousV2.py # output csv containing all the unsuitable ones. 
    
    	# 4. adjust the diffusion model: paste the csv into sampled_invalid_image_path in the yaml (dataset class) & finetune the model (1-2 times is enough)
 	train:
