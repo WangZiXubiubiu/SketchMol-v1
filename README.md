@@ -50,7 +50,7 @@ Official implementation of SketchMol.
 #### Some of the code is built from LDM:github.com/CompVis/latent-diffusion & MolScribe:github.com/thomas0809/MolScribe. The line segment detection tool is from: github.com/primetang/pylsd. Thanks for their excellent work. 
 
 # Contact
-If you have any questions, please feel free to contact [Zixu Wang](s2230167@u.tsukuba.ac.jp).
+If you have any questions, please feel free to contact s2230167@u.tsukuba.ac.jp (Zixu Wang).
 
 # License
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
