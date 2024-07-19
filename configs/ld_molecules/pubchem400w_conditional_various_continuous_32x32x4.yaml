@@ -1,0 +1,92 @@
+model:
+  base_learning_rate: 1e-07
+  target: ldm.models.diffusion.ddpm.LatentDiffusion
+  params:
+    linear_start: 0.0015
+    linear_end: 0.0195
+    num_timesteps_cond: 1
+    log_every_t: 200
+    timesteps: 1000
+    first_stage_key: image
+    cond_stage_key: various_conditions_continuous
+    cond_stage_trainable: true
+    conditioning_key: crossattn
+    image_size: 32
+    channels: 4
+    monitor: val/loss_simple_ema
+    use_ema: false
+
+    unet_config:
+      target: ldm.modules.diffusionmodules.openaimodel.UNetModel
+      params:
+        image_size: 32
+        in_channels: 4
+        out_channels: 4
+        model_channels: 320
+        attention_resolutions:
+        - 4
+        - 2
+        - 1
+        num_res_blocks: 2
+        channel_mult:
+        - 1
+        - 2
+        - 4
+        - 4
+        num_heads: 8
+        use_spatial_transformer: true
+        transformer_depth: 1
+        context_dim: 256
+        use_checkpoint: true
+        legacy: False
+    first_stage_config:
+      target: ldm.models.autoencoder.AutoencoderKL
+      params:
+        ckpt_path: your_ckpt_path.ckpt
+        embed_dim: 4
+        ddconfig:
+          double_z: True
+          z_channels: 4
+          resolution: 256
+          in_channels: 3
+          out_ch: 3
+          ch: 128
+          ch_mult: [ 1,2,4,4 ]  # num_down = len(ch_mult)-1
+          num_res_blocks: 2
+          attn_resolutions: [ ]
+          dropout: 0.0
+        lossconfig:
+          target: torch.nn.Identity
+    cond_stage_config:
+      target: ldm.modules.encoders.modules.MixedEmbedderV2
+      params:
+        embed_dim: 256
+
+data:
+  target: main.DataModuleFromConfig
+  params:
+    batch_size: 5
+    num_workers: 1
+    wrap: False
+    train:
+      target: ldm.data.pubchemdata.pubchem400wTrain_various_continuousV2
+      params:
+        size: 256
+    validation:
+      target: ldm.data.pubchemdata.pubchem400wValidation_various_continuousV2
+      params:
+        size: 256
+
+lightning:
+  callbacks:
+    image_logger:
+      target: main.ImageLogger
+      params:
+        batch_frequency: 20000
+        max_images: 8
+        increase_log_steps: False
+
+  trainer:
+    benchmark: True
+    limit_val_batches: 0.1
+
