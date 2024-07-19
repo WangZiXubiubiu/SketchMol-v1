@@ -47,7 +47,7 @@ Official implementation of SketchMol.
    	###
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python main.py --base configs/ld_molecules/pubchem400w_conditional_various_continuous_32x32x4.yaml -t --gpus 0,
 
-#### Some of the code is built from LDM:github.com/CompVis/latent-diffusion & MolScribe:github.com/thomas0809/MolScribe. Thanks for their excellent work. 
+#### Some of the code is built from LDM:github.com/CompVis/latent-diffusion & MolScribe:github.com/thomas0809/MolScribe. The line segment detection tool is from: github.com/primetang/pylsd. Thanks for their excellent work. 
 
 # Contact
 If you have any questions, please feel free to contact [Zixu Wang](s2230167@u.tsukuba.ac.jp).
