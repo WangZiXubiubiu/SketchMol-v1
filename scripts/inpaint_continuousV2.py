@@ -93,40 +93,7 @@ def make_batch(input_image_path, batch_size, mask_shape, device="cuda", mask_fro
     img = rescale_images_torch(img, zoom_factor=zoom_factor) / 127.5 - 1.0
     image = img[None, ...].repeat(batch_size, 1, 1, 1)
 
-    # if mask_from_where != "determined":
-    #     # scaffold_image_path = df_data["scaffold_path"]
-    #     sidechain_number = int(df_data["sidechain_number"])
-    # else:
-    #     # scaffold_image_path = None
-    #     sidechain_number = 0
-
-    if mask_from_where == "determined":
-        b, h, w = batch_size, mask_shape[2], mask_shape[3]
-        mask = torch.ones(b, h, w)
-
-        dice = random.random()
-        if dice < 0.5:
-            dice2 = random.random()
-            if dice2 < 1/4:
-                mask[:, : , :w // 2] = 0.
-            elif dice2 < 1/2:
-                mask[:, : , w // 2:w] = 0.
-            elif dice2 < 3/4:
-                mask[:, :h//2 , :] = 0.
-            else:
-                mask[:, h // 2:h , :] = 0.
-        else:
-        #random mask a square area square is 1/4 of the whole image
-            side_len = min(h, w) // 2
-            # Randomly choose the top left corner of the square
-            top = random.randint(0, h - side_len)
-            left = random.randint(0, w - side_len)
-            # Apply the mask
-            mask[:, top:top + side_len, left:left + side_len] = 0.
-            # zeros will be filled in
-        mask = mask[:, None, ...]
-
-    elif mask_from_where == "molecule_split":
+    if mask_from_where == "molecule_split":
         assert input_image_path is not None, "ori image path is None"
 
         ori_image = cv2.imread(input_image_path)
@@ -224,19 +191,15 @@ def property_interval_determine():
 
 
 def extract_values(keywords, sequence):
-    # 定义要搜索的关键词
     values = []
 
     for keyword in keywords:
-        # 构建正则表达式模式
         pattern = keyword + r":(-?\d*\.\d+|-?\d+)"
         match = re.search(pattern, sequence)
 
         if match:
-            # 将找到的值转换为浮点数
             values.append(float(match.group(1)))
         else:
-            # 如果没有找到对应关键词，则返回 None
             values.append(None)
 
     return values
@@ -543,7 +506,6 @@ def input_construct_helper_and_sample(input_df, cond_dict, sampler, model,
         if mask_from_where == "scaffold":
             input_image = row["ori_path"]
         else:
-            # if row["ori_path"]非空 那就0.5的概率使用ori_path
             if not pd.isna(row["ori_path"]):
                 input_image = row["ori_path"] if random.random() > 0.5 else row["Path"]
             else:
@@ -641,8 +603,6 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
     tstart = time.time()
     n_saved = len(glob.glob(os.path.join(imglogdir, '*.png')))
 
-    # dictionary build
-    # from dataset method
     cond_dict, cond_dict_valuetoname = pubchemBase_various_continuousV2.build_dict()
     sampler = DDIMSampler(model)
     final_image_results = []
@@ -651,7 +611,6 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
                 3.428, 0.6266, None, 366., 68., 1.0, 4.0, 5.0
                 ]
     if condition_type == "mol_various_preset":
-        # rewrite uclisnt
         uc_list = [
             cond_dict["None_valid_mol"],
             cond_dict["None_property"],
@@ -681,7 +640,6 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
             3.428, 0.6266, None, 366., 68., 1.0, 4.0, 5.0
         ]
 
-        # 输入序列 自动根据关键词读取LogP QED MW TPSA HBD HBA Rot
         cur_string = preset_str
         assert cur_string != "", "please clarify your input"
         keywords = ["LogP", "QED", "sa", "MW", "TPSA", "HBD", "HBA", "RB"]
@@ -818,8 +776,6 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
         assert target_task is not None, "target task is not available"
         print("target task is {} optimization".format(target_task))
 
-        # Logp QED TPSA
-        # task_information = {"Logp": 4.34, "QED": 0.75, "TPSA": 50.0}
         task_pos = {"Logp": 0, "QED": 1, "TPSA": 4}
         task_column_name = {"Logp": "aLogP_label_continuous", "QED": "QED_label_continuous",
                             "TPSA": "TPSA_label_continuous"}
@@ -926,16 +882,9 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
                     property_set[2:] + property_set_dict[2:] + [cur_image_path, cur_smiles, original_property, task_column_name[target_task]])
             ori_image = 255. * rearrange(logs["ori_image"].cpu().numpy(), 'c h w -> h w c')
             Image.fromarray(ori_image.astype(np.uint8)).save(os.path.join(cur_imglogdir, "ori.png"))
-
-            # mask_sample = 255. * rearrange(logs["mask"].cpu().numpy(), 'c h w -> h w c')
-            # mask_sample = np.repeat(mask_sample, 3, axis=2)
-            # Image.fromarray(mask_sample.astype(np.uint8)).resize((256, 256), resample=PIL.Image.BICUBIC).save(os.path.join(cur_imglogdir, "mask.png"))
             cv2.imwrite(os.path.join(cur_imglogdir, "mask.png"), logs["mask_for_visiual"])
-
             ori_image = 255. * rearrange(logs["ori_image_decode"].cpu().numpy(), 'c h w -> h w c')
             Image.fromarray(ori_image.astype(np.uint8)).save(os.path.join(cur_imglogdir, "ori_image_decode.png"))
-
-            # cv2.imwrite(os.path.join(cur_imglogdir, "ori_size_mask.png"), logs["ori_size_mask"])
 
         target_image_path = pd.DataFrame(final_image_results, columns=["logp_setting", "QED_setting", "SA_setting",
                                                                        "MolWt_setting", "TPSA_setting", "HBD_setting",
@@ -978,7 +927,7 @@ def get_parser():
         type=int,
         nargs="?",
         help="number of each smiles to draw",
-        default=4
+        default=15
     )
     parser.add_argument(
         "-e",
@@ -1028,7 +977,7 @@ def get_parser():
         "--scale_pro",
         type=float,
         nargs="?",
-        default=4,
+        default=2,
         help=""
     )
     parser.add_argument(
@@ -1062,7 +1011,7 @@ def get_parser():
         "--mask_from_where",
         type=str,
         nargs="?",
-        default="molecule_split"
+        default="mol_various_preset"
     )
     parser.add_argument(
         "--zoom_factor",

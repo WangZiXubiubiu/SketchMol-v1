@@ -517,7 +517,7 @@ class pubchemBase_single_protein(pubchemBase_various_continuousV2):
                  sampled_expand_image_path=None,
                  rediscovery_mode=False,
                  ):
-        protein_support_pool = ["CDK2", "AKT1", "EP2", "EP4", "ROCK1", "ROCK2", "HER2", "EGFR"]
+        protein_support_pool = ["AKT1", "EP4", "ROCK1"]
         assert target_protein is not None, "target protein should be specified"
         assert target_protein in protein_support_pool, "target protein should be in the protein pool"
 
@@ -559,30 +559,13 @@ class pubchemBase_single_protein(pubchemBase_various_continuousV2):
         cond_dict["matched_protein"] = 48
         cond_dict["None_protein"] = 49
 
-        cond_dict["None_CDK2"] = 50
-        cond_dict["Act_CDK2"] = 51
-        cond_dict["None_CDK4"] = 53
-        cond_dict["Act_CDK4"] = 54
-        cond_dict["None_CDK6"] = 56
-        cond_dict["Act_CDK6"] = 57
         cond_dict["None_AKT1"] = 59
         cond_dict["Act_AKT1"] = 60
-        cond_dict["None_BTK"] = 62
-        cond_dict["Act_BTK"] = 63
-        cond_dict["None_EPHX2"] = 65
-        cond_dict["Act_EPHX2"] = 66
-        cond_dict["None_EP2"] = 68
-        cond_dict["Act_EP2"] = 69
         cond_dict["None_EP4"] = 71
         cond_dict["Act_EP4"] = 72
         cond_dict["None_ROCK1"] = 74
         cond_dict["Act_ROCK1"] = 75
-        cond_dict["None_ROCK2"] = 77
-        cond_dict["Act_ROCK2"] = 78
-        cond_dict["None_HER2"] = 80
-        cond_dict["Act_HER2"] = 81
-        cond_dict["None_EGFR"] = 83
-        cond_dict["Act_EGFR"] = 84
+
 
         cond_dict_valuetoname = {value: key for key, value in cond_dict.items()}
         return cond_dict, cond_dict_valuetoname
@@ -745,7 +728,7 @@ class pubchemBase_single_protein(pubchemBase_various_continuousV2):
                                            ] + cur_property_list + cur_protein_list
             list_for_whether_property_from_dict = [True, True] + cur_property_list_dict + cur_protein_list_dict
 
-        # insert None value for whether valid and whether matched
+        # insert None value
 
         if list_for_property_condition[0] in [self.cond_dict["valid_mol"],
                                               self.cond_dict["invalid_mol"]] and random.random() < 0.2:

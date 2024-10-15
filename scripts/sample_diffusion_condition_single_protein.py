@@ -10,13 +10,9 @@ from PIL import Image
 from einops import rearrange
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.util import instantiate_from_config
-from ldm.data.pubchemdata import pubchemBase_various_continuousV2, pubchemBase_single_protein
+from ldm.data.pubchemdata import pubchemBase_single_protein
 
-from scripts.inpaint_uncond_mol import make_batch
 from sample_diffusion_condition_continuousV2 import extract_values
-
-rescale = lambda x: (x + 1.) / 2.
-
 
 def custom_to_pil(x):
     x = x.detach().cpu()
@@ -31,7 +27,6 @@ def custom_to_pil(x):
 
 
 def custom_to_np(x):
-    # saves the batch in adm style as in https://github.com/openai/guided-diffusion/blob/main/scripts/image_sample.py
     sample = x.detach().cpu()
     sample = ((sample + 1) * 127.5).clamp(0, 255).to(torch.uint8)
     sample = sample.permute(0, 2, 3, 1)
@@ -314,11 +309,10 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
 
         property_set_dict = [True, True]
 
-        # 输入序列 自动根据关键词读取LogP QED MW TPSA HBD HBA Rot
         cur_string = preset_str
         assert cur_string != "", "please clarify your input"
-        keywords = ["LogP", "QED", "sa", "MW", "TPSA", "HBD", "HBA", "RB", "CDK2",
-                     "EP4",  "ROCK2", "HER2", "EGFR", "EP2", "AKT1", "ROCK1"]
+        keywords = ["LogP", "QED", "sa", "MW", "TPSA", "HBD", "HBA", "RB",
+                     "EP4",  "AKT1", "ROCK1"]
         target_protein = None
         extract_string = extract_values(keywords, cur_string)
         for id, value in enumerate(extract_string):
@@ -452,7 +446,7 @@ def get_parser():
         type=int,
         nargs="?",
         help="number of each sample to draw",
-        default=4
+        default=10
     )
     parser.add_argument(
         "-e",

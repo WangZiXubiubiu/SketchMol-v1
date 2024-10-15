@@ -168,8 +168,6 @@ def get_parser():
 
 
 if __name__ == '__main__':
-    # python mp_mol_image_generation_for_diffusion.py --num_workers 5
-
     parser = get_parser()
     config = parser.parse_args()
 

@@ -8,7 +8,6 @@ from ldm.modules.diffusionmodules.model import Encoder, Decoder
 from ldm.modules.distributions.distributions import DiagonalGaussianDistribution
 from ldm.util import instantiate_from_config
 
-
 class VQModel(pl.LightningModule):
     def __init__(self,
                  ddconfig,
@@ -139,8 +138,6 @@ class VQModel(pl.LightningModule):
         return x
 
     def training_step(self, batch, batch_idx, optimizer_idx):
-        # https://github.com/pytorch/pytorch/issues/37142
-        # try not to fool the heuristics
         x = self.get_input(batch, self.image_key)
         xrec, qloss, ind = self(x, return_pred_indices=True)
 

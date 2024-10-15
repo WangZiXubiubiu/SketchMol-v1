@@ -10,27 +10,21 @@ from PIL import Image
 from einops import rearrange
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.util import instantiate_from_config
-from ldm.data.jianmindata import JianminBase_single_protein
-import PIL
+from ldm.data.pubchemdata import pubchemBase_single_protein
 import cv2
-from scripts.inpaint_uncond_mol import make_batch
-
+from scripts.inpaint_continuousV2 import make_batch
 
 
 def extract_values(keywords, sequence):
-    # 定义要搜索的关键词
     values = []
 
     for keyword in keywords:
-        # 构建正则表达式模式
         pattern = keyword + r":(-?\d*\.\d+|-?\d+)"
         match = re.search(pattern, sequence)
 
         if match:
-            # 将找到的值转换为浮点数
             values.append(float(match.group(1)))
         else:
-            # 如果没有找到对应关键词，则返回 None
             values.append(None)
 
     return values
@@ -250,7 +244,6 @@ def input_construct_helper_and_sample(input_df, cond_dict, sampler, model,
         if mask_from_where == "scaffold":
             input_image = row["ori_path"]
         else:
-            # if row["ori_path"]非空 那就0.5的概率使用ori_path
             if not pd.isna(row["ori_path"]):
                 input_image = row["ori_path"] if random.random() > 0.5 else row["Path"]
             else:
@@ -345,142 +338,11 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
 
     # dictionary build
     # from dataset method
-    cond_dict, cond_dict_valuetoname = JianminBase_single_protein.build_dict()
+    cond_dict, cond_dict_valuetoname = pubchemBase_single_protein.build_dict()
     sampler = DDIMSampler(model)
     final_image_results = []
 
-    midvalue = [None, None,
-                3.428, 0.6266, None, 366., 68., 1.0, 4.0, 5.0
-                ]
-
-    if condition_type == "mol_bio_change":
-        cur_csv = pd.read_csv(validation_dataset)
-        cur_csv = cur_csv[cur_csv["Path_split"].notna()]
-        cur_csv = cur_csv.sample(n=min(len(cur_csv), 100), random_state=42)
-        cur_csv = cur_csv.reset_index(drop=True)
-
-        print("now we get {} samples".format(len(cur_csv)))
-
-        target_task_pool = ["CDK2", "EP4", "ROCK1", "AKT1"]
-        target_task = None
-        for task in target_task_pool:
-            if task.lower() in validation_dataset.lower():
-                target_task = task
-                break
-        assert target_task is not None, "target task is not available"
-        print("target task is {} optimization".format(target_task))
-
-        uc_list = [
-            cond_dict["None_valid_mol"],
-            cond_dict["None_property"],
-            cond_dict["None_logp"],
-            cond_dict["None_QED"],
-            cond_dict["None_SA"],
-            cond_dict["None_MolWt"],
-            cond_dict["None_TPSA"],
-            cond_dict["None_HBD"],
-            cond_dict["None_HBA"],
-            cond_dict["None_rotatable"],
-            cond_dict["unmatched_protein"],
-            cond_dict["None_" + target_task]
-        ]
-        uc_list_dict = [True] * len(uc_list)
-
-        if tri_mode:
-            property_set = [cond_dict["None_valid_mol"], cond_dict["None_property"]]
-        else:
-            property_set = [cond_dict["valid_mol"], cond_dict["None_property"]]
-        property_set_dict = [True, True]
-
-        property_post = [
-            cond_dict["None_logp"],
-            cond_dict["None_QED"],
-            cond_dict["None_SA"],
-            cond_dict["None_MolWt"],
-            cond_dict["None_TPSA"],
-            cond_dict["None_HBD"],
-            cond_dict["None_HBA"],
-            cond_dict["None_rotatable"],
-            cond_dict["matched_protein"],
-            cond_dict["Act_{}".format(target_task)]
-        ]
-        property_post_dict = [True] * len(property_post)
-
-        property_set = property_set + property_post
-        property_set_dict = property_set_dict + property_post_dict
-
-        if tri_mode:
-            print("valid_scale:{}".format(float(scale)), "property_scale:{}".format(float(scale_pro)))
-            valid_list = [cond_dict["valid_mol"]] + uc_list[1:]
-            valid_list[-2] = cond_dict["None_protein"]
-            valid_list[-1] = cond_dict["Act_{}".format(target_task)]
-
-            valid_list_dict = property_set_dict
-        else:
-            print("scale:{}".format(float(scale)))
-            valid_list, valid_list_dict = None, None
-
-        print(f"Running conditional sampling for {n_samples} samples")
-        print(f"each condition have {conditional_count} samples")
-        print(f"so finally, output image is {conditional_count * n_samples}")
-
-        final_image_results = []
-
-        for i in trange(len(cur_csv), desc="Sampling Batches (conditional)"):
-            cur_imglogdir = os.path.join(imglogdir, str(i))
-            os.makedirs(cur_imglogdir, exist_ok=True)
-            # get line
-            row = cur_csv.iloc[i, :]
-            cur_smiles = row["SMILES"]
-            cur_bio_active_rate = row["imagemol_predict_score"]
-
-            logs = make_conditional_sample_mask_version(sampler, model,
-                                                        batch_size=conditional_count,
-                                                        custom_steps=custom_steps,
-                                                        eta=eta, scale=scale,
-                                                        property_set=property_set,
-                                                        property_set_dict=property_set_dict,
-                                                        uc_list=uc_list,
-                                                        uc_list_dict=uc_list_dict,
-                                                        tri_mode=tri_mode,
-                                                        valid_list=valid_list,
-                                                        valid_list_dict=valid_list_dict,
-                                                        scale_pro=scale_pro,
-                                                        df_data=row,
-                                                        mask_from_where=mask_from_where,
-                                                        zoom_factor=zoom_factor,
-                                                        repaint_time=repaint_time,
-                                                        condition_type="mol_property_change")
-            for index, x_sample in enumerate(logs["sample"]):
-                x_sample = 255. * rearrange(x_sample.cpu().numpy(), 'c h w -> h w c')
-                Image.fromarray(x_sample.astype(np.uint8)).save(os.path.join(cur_imglogdir, f"{i}_{n_saved}.png"))
-                cur_image_path = os.path.join(cur_imglogdir, f"{i}_{n_saved}.png")
-                n_saved += 1
-                final_image_results.append(
-                    property_set[2:10] + [property_set[11]] + property_set_dict[2:10] + [cur_image_path, cur_smiles, cur_bio_active_rate, target_task])
-            ori_image = 255. * rearrange(logs["ori_image"].cpu().numpy(), 'c h w -> h w c')
-            Image.fromarray(ori_image.astype(np.uint8)).save(os.path.join(cur_imglogdir, "ori.png"))
-
-            # mask_sample = 255. * rearrange(logs["mask"].cpu().numpy(), 'c h w -> h w c')
-            # mask_sample = np.repeat(mask_sample, 3, axis=2)
-            # Image.fromarray(mask_sample.astype(np.uint8)).resize((256, 256), resample=PIL.Image.BICUBIC).save(os.path.join(cur_imglogdir, "mask.png"))
-            cv2.imwrite(os.path.join(cur_imglogdir, "mask.png"), logs["mask_for_visiual"])
-
-            ori_image = 255. * rearrange(logs["ori_image_decode"].cpu().numpy(), 'c h w -> h w c')
-            Image.fromarray(ori_image.astype(np.uint8)).save(os.path.join(cur_imglogdir, "ori_image_decode.png"))
-
-            # cv2.imwrite(os.path.join(cur_imglogdir, "ori_size_mask.png"), logs["ori_size_mask"])
-
-        target_image_path = pd.DataFrame(final_image_results, columns=["logp_setting", "QED_setting", "SA_setting",
-                                                                   "MolWt_setting", "TPSA_setting", "HBD_setting",
-                                                                   "HBA_setting", "rotatable_setting",
-                                                                   "{}_setting".format(target_task),
-                                                                   "logp_None", "QED_None", "SA_None", "MolWt_None",
-                                                                   "TPSA_None", "HBD_None", "HBA_None",
-                                                                   "rotatable_None",
-                                                                   "image_path", "smiles", "ori_bio_active_rate","target_protein"])
-        target_image_path.to_csv(os.path.join(logdir, "image_path.csv"), index=False)
-    elif condition_type == "mol_various_preset":
+    if condition_type == "mol_various_preset":
         # rewrite uclisnt
         uc_list = [
             cond_dict["None_valid_mol"],
@@ -513,11 +375,10 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
             3.428, 0.6266, None, 366., 68., 1.0, 4.0, 5.0
         ]
 
-        # 输入序列 自动根据关键词读取LogP QED SA MW TPSA HBD HBA Rot
         cur_string = preset_str
         assert cur_string != "", "please clarify your input"
-        keywords = ["LogP", "QED", "sa", "MW", "TPSA", "HBD", "HBA", "RB", "CDK2",
-                     "EP4",  "ROCK2", "HER2", "EGFR", "EP2", "AKT1", "ROCK1"]
+        keywords = ["LogP", "QED", "sa", "MW", "TPSA", "HBD", "HBA", "RB",
+                     "EP4", "AKT1", "ROCK1"]
         target_protein = None
         extract_string = extract_values(keywords, cur_string)
         for id, value in enumerate(extract_string):
@@ -681,7 +542,7 @@ def get_parser():
         "--scale_pro",
         type=float,
         nargs="?",
-        default=15,
+        default=6,
         help="unconditional gudience"
     )
     parser.add_argument(
@@ -693,7 +554,7 @@ def get_parser():
         "--condition_type",
         type=str,
         default="mol_various_preset",
-        # mol_various_preset, mol_various_random_from_dataset_mask_version
+        # mol_various_preset
     )
     parser.add_argument(
         "-p",
@@ -707,15 +568,10 @@ def get_parser():
         default=2,
     )
     parser.add_argument(
-        "--tri",
-        action='store_true',
-        help="triangle mode",
-    )
-    parser.add_argument(
         "--mask_from_where",
         type=str,
         nargs="?",
-        default="molecule_split"  # determined, scoop_scaffold, half_split
+        default="mol_various_preset"
     )
     parser.add_argument(
         "--zoom_factor",
@@ -732,8 +588,13 @@ def get_parser():
     parser.add_argument(
         "--validation_dataset",
         type=str,
-        default="/home/wangzixu/tmp_exp/inpaint_mol.csv",
+        default="",
         nargs="?",
+    )
+    parser.add_argument(
+        "--tri",
+        type=bool,
+        default=True,
     )
     return parser
 

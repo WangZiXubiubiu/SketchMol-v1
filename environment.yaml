@@ -24,7 +24,7 @@ dependencies:
     - einops==0.3.0
     - torch-fidelity==0.3.0
     - transformers==4.3.1
-    - rdkit==2020.09.1
+    - rdkit==2022.3.3
     - cairosvg==2.7.1
     - -e git+https://github.com/CompVis/taming-transformers.git@master#egg=taming-transformers
     - -e git+https://github.com/openai/CLIP.git@main#egg=clip

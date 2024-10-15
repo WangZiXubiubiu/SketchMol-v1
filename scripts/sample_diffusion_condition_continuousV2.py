@@ -13,19 +13,15 @@ from ldm.util import instantiate_from_config
 from ldm.data.pubchemdata import pubchemBase_various_continuousV2
 
 def extract_values(keywords, sequence):
-    # 定义要搜索的关键词
     values = []
 
     for keyword in keywords:
-        # 构建正则表达式模式
         pattern = keyword + r":(-?\d*\.\d+|-?\d+)"
         match = re.search(pattern, sequence)
 
         if match:
-            # 将找到的值转换为浮点数
             values.append(float(match.group(1)))
         else:
-            # 如果没有找到对应关键词，则返回 None
             values.append(None)
 
     return values
@@ -362,7 +358,6 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
         midvalue = [
             3.428, 0.6266, None, 366., 68., 1.0, 4.0, 5.0
         ]
-        # 输入序列 自动根据关键词读取LogP QED SA MW TPSA HBD HBA Rot
         cur_string = preset_str
         assert cur_string != "", "please clarify your input"
         keywords = ["LogP", "QED", "sa", "MW", "TPSA", "HBD", "HBA", "RB"]
@@ -457,7 +452,7 @@ def get_parser():
         "--resume",
         type=str,
         nargs="?",
-        help="load from logdir or checkpoint in logdir",
+        help="load checkpoint in logdir",
     )
 
     parser.add_argument(
@@ -510,14 +505,14 @@ def get_parser():
         type=float,
         nargs="?",
         default=2,
-        help="unconditional gudience"
+        help="valid gudience"
     )
     parser.add_argument(
         "--scale_pro",
         type=float,
         nargs="?",
         default=4,
-        help="unconditional gudience"
+        help="property gudience"
     )
     parser.add_argument(
         "--post",
@@ -574,8 +569,6 @@ def load_model(config, ckpt, gpu, eval_mode):
 
 
 if __name__ == "__main__":
-    # os.environ['CUDA_VISIBLE_DEVICES'] = '1'
-    # bash: CUDA_VISIBLE_DEVICES=0 python scripts/sample_diffusion_condition_continuousV2.py --scale 8 -r /work/data1/wangzixu/backup/tako_backup/Latent-Diffusion-logs/logs/2023-04-28T12-24-49_pubchem400w_conditional_property_64x64x3ori_ori_property_version/checkpoints/last.ckpt
     now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 
     sys.path.append(os.getcwd())

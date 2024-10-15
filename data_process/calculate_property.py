@@ -60,9 +60,6 @@ def main(args):
         print("fail: {}".format(fail))
         print("done")
 
-
-# for standard moses data
-# python pre_plot.py --path_gen ...
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--path_csv', type=str, default=None, required=True)
