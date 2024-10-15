@@ -1,5 +1,13 @@
 Official implementation of SketchMol.
 
+<p align="left">
+  <img src="./assets/animation1.gif" alt="Image Alt Text 1" width="150" />
+  <img src="./assets/animation2.gif" alt="Image Alt Text 2" width="150" />
+  <img src="./assets/animation3.gif" alt="Image Alt Text 2" width="150" />
+  <img src="./assets/animation4.gif" alt="Image Alt Text 2" width="150" />
+  <img src="./assets/animation5.gif" alt="Image Alt Text 2" width="150" />
+</p>
+
 # Installation
 	git clone https://github.com/WangZiXubiubi/SketchMol-v1.git
 	cd SketchMol-v1
