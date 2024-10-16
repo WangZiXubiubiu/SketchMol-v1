@@ -95,7 +95,6 @@ def main():
             pbar.update(1)
             cur_mol = get_mol(row["SMILES"])
 
-            # 保证分子为有效分子
             if cur_mol == None or pd.isna(cur_mol):
                 target_path_csv.append([row["image_path"],
                                         row["SMILES"],
@@ -160,7 +159,6 @@ def main():
             available_property_list = ["Logp", "QED", "SA", "MolWt", "TPSA", "HBD", "HBA", "rotatable"]
 
             violate_count = 0
-            # 保证分子的性质在设置的范围内
             for label_index in range(len(mol_setting)):
                 if mol_setting_dict[label_index]:
                     continue

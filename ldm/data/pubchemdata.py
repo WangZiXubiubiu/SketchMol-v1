@@ -376,7 +376,7 @@ class pubchemBase_various_continuousV2(Dataset):
         if self.invalid_mode:
             # three type of data construction
             # 30% random invalid images from Invalid_Image_pool
-            # 70% random valid images from file_path_canimage/file_path_oriimage with its properties
+            # 70% random valid images
             cur_dice = random.random()
 
             none_property_list = [self.cond_dict["None_logp"],
@@ -391,7 +391,6 @@ class pubchemBase_various_continuousV2(Dataset):
             none_property_from_dict = [True] * len(none_property_list)
             if cur_dice < 0.3:
                 invalid_from_where_dice = random.random()
-                # 20% random invalid images from Invalid_Image_pool   1:1:8 if resampled stage else 1:1:0
                 if self.sampled_invalid_image_path is None or invalid_from_where_dice < 0.3:
                     if random.random() < 0.5:
                         # invalid mode1: random invalid mol images
@@ -449,7 +448,7 @@ class pubchemBase_various_continuousV2(Dataset):
                     list_for_property_condition = prefix + list_for_property_condition
                     list_for_whether_property_from_dict = [True, True] + list_for_whether_property_from_dict
             else:
-                # 70% random valid images from file_path_canimage/file_path_oriimage with its properties
+                # 70% random valid images
                 available_pool = [example["file_path_canimage"]]
                 if not pd.isna(example["file_path_oriimage"]):
                     available_pool.append(example["file_path_oriimage"])

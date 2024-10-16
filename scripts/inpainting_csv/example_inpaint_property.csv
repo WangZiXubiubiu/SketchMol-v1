@@ -1,0 +1,2 @@
+Path,Path_keep
+./scripts/inpainting_csv/example_image_property.png,./scripts/inpainting_csv/example_mask_property.png
