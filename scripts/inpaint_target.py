@@ -507,7 +507,7 @@ def get_parser():
         type=int,
         nargs="?",
         help="index of sample from validation dataset to draw",
-        default=10
+        default=5
     )
     parser.add_argument(
         "-v",
@@ -542,7 +542,7 @@ def get_parser():
         "--scale_pro",
         type=float,
         nargs="?",
-        default=6,
+        default=2,
         help="unconditional gudience"
     )
     parser.add_argument(

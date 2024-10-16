@@ -468,7 +468,7 @@ def get_parser():
         type=int,
         nargs="?",
         help="number of each smiles to draw",
-        default=10
+        default=5
     )
     parser.add_argument(
         "-e",
