@@ -1,12 +1,14 @@
-Official implementation of SketchMol.
+Official implementation of SketchMol. This work is undergoing a review process.
 
+<!-- 
 <p align="left">
   <img src="./assets/animation1.gif" alt="Image Alt Text 1" width="125" />
   <img src="./assets/animation2.gif" alt="Image Alt Text 2" width="125" />
   <img src="./assets/animation3.gif" alt="Image Alt Text 3" width="125" />
   <img src="./assets/animation4.gif" alt="Image Alt Text 4" width="125" />
   <img src="./assets/animation5.gif" alt="Image Alt Text 5" width="125" />
-</p>
+</p> 
+-->
 
 ## Installation
 #### The following command will help you create an environment named sketchmol.
