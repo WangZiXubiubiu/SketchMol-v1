@@ -74,13 +74,17 @@ Official implementation of SketchMol. This work is undergoing a review process.
 ### Stage2: Train diffusion model (don't forget load the autoencoder ckpt in yaml)
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python main.py --base configs/ld_molecules/pubchem400w_conditional_various_continuous_32x32x4.yaml -t --gpus 0,
 ### Stage3: Adjust diffusion model (RLME, Provide molecules that do not meet the expectations for fine-tuning the diffusion model. ）
-#### This is the process in the article for physichemical-constrained molecular generation. You can adjust this process according to the tasks you expect. It is not necessary to integrate external models into the diffusion model; it is sufficient for the external models to provide assessments only. 
+This is the process in the article for physichemical-constrained molecular generation. You can adjust this process according to the tasks you expect. It is not necessary to integrate external models into the diffusion model; it is sufficient for the external models to provide assessments only. 
 ### Stage3.1: Sample some images from the pretrained current model. 
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/sample_diffusion_condition_continuousV2.py -r /path/model.ckpt --conditional_count 40 --condition_type mol_various_validation_from_dataset --proerty_num 3
  	CUDA_VISIBLE_DEVICES=<gpu_ids> python ～/MolScribe-v1/predict_csv.py --model_path ./ckpt_from_molscribe/swin_base_char_aux_200k.pth --image_path path_to_your_generated_csv.csv
-### Stage3.2: Evaluate properties. In this step, we will save poor molecular images into a separate CSV file: (1) completely invalid molecular images, and (2) images that deviate too far from the desired properties.
-  	python evaluate/low_quality_image_various_condtion_continuousV2.py # output a csv path containing all the unsuitable ones. 
-### Stage3.3: Adjust the diffusion model: paste the csv output from Stage 3.2 into sampled_invalid_image_path in the yaml (dataset class) & finetune the model. In the dataloader stage, there is a 30% chance that the dataloader will read problematic molecular images generated from the previous stage. （1）For invalid molecular images, the model adds the label "invalid_mol" in contrast to the "valid_mol" label for valid molecular images. (2) For images that do not meet the conditions, the model adds the label "unmatched_property," in contrast to the "matched_property" label for images that meet the conditions.
+### Stage3.2: Evaluate properties. 
+In this step, we will save poor molecular images into a separate CSV file: (1) completely invalid molecular images, and (2) images that deviate too far from the desired properties.
+
+	python evaluate/low_quality_image_various_condtion_continuousV2.py # output a csv path containing all the unsuitable ones. 
+### Stage3.3: Adjust the diffusion model.
+Paste the csv output from Stage 3.2 into sampled_invalid_image_path in the yaml (dataset class) & finetune the model. In the dataloader stage, there is a 30% chance that the dataloader will read problematic molecular images generated from the previous stage.（1）For invalid molecular images, the model adds the label "invalid_mol" in contrast to the "valid_mol" label for valid molecular images. (2) For images that do not meet the conditions, the model adds the label "unmatched_property," in contrast to the "matched_property" label for images that meet the conditions.
+
 	# add undesired molecular csv into the yaml file
  	###
  	train:
@@ -90,7 +94,8 @@ Official implementation of SketchMol. This work is undergoing a review process.
 			sampled_invalid_image_path: path_to_your_undesired_images.csv
    	###
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python main.py --base configs/ld_molecules/pubchem400w_conditional_various_continuous_32x32x4.yaml -t --gpus 0,
- ### Stage3.4: Repeat the above process 1-2 times. During the sampling process, SketchMol will use DDIM to follow the denoising direction provided by the "valid_mol" label and move away from the direction of "invalid_mol". The same applies to properties. In your own application scenarios, you can add new labels and external evaluation models to guide the model in generating the desired molecular images.
+ ### Stage3.4: Repeat the above process 1-2 times. 
+ During the sampling process, SketchMol will use DDIM to follow the denoising direction provided by the "valid_mol" label and move away from the direction of "invalid_mol". The same applies to properties. In your own application scenarios, you can add new labels and external evaluation models to guide the model in generating the desired molecular images.
 
 ## Acknowledgements
 We would like to thank the authors of the following open-source projects, which have been very helpful in the development of SketchMol:
