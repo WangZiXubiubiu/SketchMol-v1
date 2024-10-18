@@ -29,7 +29,7 @@ Official implementation of SketchMol. This work is undergoing a review process.
 	
 ## Several Examples for Molecular Image Generation 
 #### Download pretrained SketchMol model for property generation & yaml from google drive: 
-<!--  https://drive.google.com/drive/folders/1rejzAzdNCjCNHxaNs7kkAZY6e0GMa5G1?usp=sharing -->
+https://drive.google.com/drive/folders/1rejzAzdNCjCNHxaNs7kkAZY6e0GMa5G1?usp=sharing
 #### Example 1: Sample from single physicochemical property (Supports up to 7 attributes LogP, QED, MW, TPSA, HBD, HBA, RB). The following is an example of sampling molecular images with a molecular weight of 400.
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/sample_diffusion_condition_continuousV2.py --post example1_mw_400 -p "MW:400" -r /path/diffusion_model.ckpt
 #### Example 2: Sample from multi physicochemical properties. The following is an example of sampling molecular images with QED=0.65, HBD=1 & RB=0. 
@@ -38,9 +38,9 @@ Official implementation of SketchMol. This work is undergoing a review process.
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/inpaint_continuousV2.py --post example3_logp_4 -p "LogP:4" -r /path/model.ckpt --validation_dataset ./scripts/inpainting_csv/example_inpaint_property.csv 
 #### Example 4: Inpaint from multi physicochemical properties. The following is an example of sampling molecular images with TPSA=40, HBD=1 & HBA=3.
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/inpaint_continuousV2.py --post example4_tpsa_40_hbd_1_hba_3 -p "TPSA:40 HBD:1 HBA:3" -r /path/model.ckpt --validation_dataset ./scripts/inpainting_csv/example_inpaint_property.csv 
-<!-- 
+
 #### Download pretrained SketchMol model for EP4 & yaml from google drive: https://drive.google.com/drive/folders/1ha6kOeCf3Spt8uxxkfG37LZOBgM48QwM?usp=sharing
--->
+
 #### Example 5: Sample molecules for the target protein. The following is an example of a sampling molecular images for EP4. 
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/sample_diffusion_condition_single_protein.py --post example5_ep4 -p "EP4:1" -r /path/ep4_model.ckpt 
 #### Example 6: Generate a complete molecule starting from the required fragment. The following is an example of EP4 fragment growing. 
