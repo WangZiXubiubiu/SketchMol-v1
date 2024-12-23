@@ -343,7 +343,6 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
     final_image_results = []
 
     if condition_type == "mol_various_preset":
-        # rewrite uclisnt
         uc_list = [
             cond_dict["None_valid_mol"],
             cond_dict["None_property"],
@@ -461,7 +460,129 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
                                                                    "rotatable_None",
                                                                    "image_path"])
         target_image_path.to_csv(os.path.join(logdir, "image_path.csv"), index=False)
+    elif condition_type == "mol_bio_change":
+        cur_csv = pd.read_csv(validation_dataset)
+        cur_csv = cur_csv[cur_csv["Path_split"].notna()]
+        cur_csv = cur_csv.reset_index(drop=True)
 
+        print("now we get {} samples".format(len(cur_csv)))
+
+        target_task_pool = ["EP4", "ROCK1", "AKT1"]
+        target_task = None
+        for task in target_task_pool:
+            if task.lower() in validation_dataset.lower():
+                target_task = task
+                break
+        assert target_task is not None, "target task is not available"
+        print("target task is {} optimization".format(target_task))
+
+        uc_list = [
+            cond_dict["None_valid_mol"],
+            cond_dict["None_property"],
+            cond_dict["None_logp"],
+            cond_dict["None_QED"],
+            cond_dict["None_SA"],
+            cond_dict["None_MolWt"],
+            cond_dict["None_TPSA"],
+            cond_dict["None_HBD"],
+            cond_dict["None_HBA"],
+            cond_dict["None_rotatable"],
+            cond_dict["unmatched_protein"],
+            cond_dict["None_" + target_task]
+        ]
+        uc_list_dict = [True] * len(uc_list)
+
+        if tri_mode:
+            property_set = [cond_dict["None_valid_mol"], cond_dict["None_property"]]
+        else:
+            property_set = [cond_dict["valid_mol"], cond_dict["None_property"]]
+        property_set_dict = [True, True]
+
+        property_post = [
+            cond_dict["None_logp"],
+            cond_dict["None_QED"],
+            cond_dict["None_SA"],
+            cond_dict["None_MolWt"],
+            cond_dict["None_TPSA"],
+            cond_dict["None_HBD"],
+            cond_dict["None_HBA"],
+            cond_dict["None_rotatable"],
+            cond_dict["matched_protein"],
+            cond_dict["Act_{}".format(target_task)]
+        ]
+        property_post_dict = [True] * len(property_post)
+
+        property_set = property_set + property_post
+        property_set_dict = property_set_dict + property_post_dict
+
+        if tri_mode:
+            print("valid_scale:{}".format(float(scale)), "property_scale:{}".format(float(scale_pro)))
+            valid_list = [cond_dict["valid_mol"]] + uc_list[1:]
+            valid_list[-2] = cond_dict["None_protein"]
+            valid_list[-1] = cond_dict["Act_{}".format(target_task)]
+
+            valid_list_dict = property_set_dict
+        else:
+            print("scale:{}".format(float(scale)))
+            valid_list, valid_list_dict = None, None
+
+        print(f"Running conditional sampling for {n_samples} samples")
+        print(f"each condition have {conditional_count} samples")
+        print(f"so finally, output image is {conditional_count * n_samples}")
+
+        final_image_results = []
+
+        for i in trange(len(cur_csv), desc="Sampling Batches (conditional)"):
+            cur_imglogdir = os.path.join(imglogdir, str(i))
+            os.makedirs(cur_imglogdir, exist_ok=True)
+            # get line
+            row = cur_csv.iloc[i, :]
+            cur_smiles = row["SMILES"]
+            # cur_bio_active_rate = row["imagemol_predict_score"]
+
+            logs = make_conditional_sample_mask_version(sampler, model,
+                                                        batch_size=conditional_count,
+                                                        custom_steps=custom_steps,
+                                                        eta=eta, scale=scale,
+                                                        property_set=property_set,
+                                                        property_set_dict=property_set_dict,
+                                                        uc_list=uc_list,
+                                                        uc_list_dict=uc_list_dict,
+                                                        tri_mode=tri_mode,
+                                                        valid_list=valid_list,
+                                                        valid_list_dict=valid_list_dict,
+                                                        scale_pro=scale_pro,
+                                                        df_data=row,
+                                                        mask_from_where=mask_from_where,
+                                                        zoom_factor=zoom_factor,
+                                                        repaint_time=repaint_time,
+                                                        condition_type="mol_property_change")
+            for index, x_sample in enumerate(logs["sample"]):
+                x_sample = 255. * rearrange(x_sample.cpu().numpy(), 'c h w -> h w c')
+                Image.fromarray(x_sample.astype(np.uint8)).save(os.path.join(cur_imglogdir, f"{i}_{n_saved}.png"))
+                cur_image_path = os.path.join(cur_imglogdir, f"{i}_{n_saved}.png")
+                n_saved += 1
+                final_image_results.append(
+                    property_set[2:10] + [property_set[11]] + property_set_dict[2:10] + [cur_image_path, cur_smiles, target_task])
+                # final_image_results.append(
+                #     property_set[2:10] + [property_set[11]] + property_set_dict[2:10] + [cur_image_path, cur_smiles, cur_bio_active_rate, target_task])
+            ori_image = 255. * rearrange(logs["ori_image"].cpu().numpy(), 'c h w -> h w c')
+            Image.fromarray(ori_image.astype(np.uint8)).save(os.path.join(cur_imglogdir, "ori.png"))
+
+            cv2.imwrite(os.path.join(cur_imglogdir, "mask.png"), logs["mask_for_visiual"])
+
+            # ori_image = 255. * rearrange(logs["ori_image_decode"].cpu().numpy(), 'c h w -> h w c')
+            # Image.fromarray(ori_image.astype(np.uint8)).save(os.path.join(cur_imglogdir, "ori_image_decode.png"))
+
+        target_image_path = pd.DataFrame(final_image_results, columns=["logp_setting", "QED_setting", "SA_setting",
+                                                                   "MolWt_setting", "TPSA_setting", "HBD_setting",
+                                                                   "HBA_setting", "rotatable_setting",
+                                                                   "{}_setting".format(target_task),
+                                                                   "logp_None", "QED_None", "SA_None", "MolWt_None",
+                                                                   "TPSA_None", "HBD_None", "HBA_None",
+                                                                   "rotatable_None",
+                                                                   "image_path", "smiles", "target_protein"])
+        target_image_path.to_csv(os.path.join(logdir, "image_path.csv"), index=False)
 
 
     print(f"path save to {logdir}/image_path.csv")
@@ -689,7 +810,8 @@ if __name__ == "__main__":
         yaml.dump(sampling_conf, f, default_flow_style=False)
     print(sampling_conf)
 
-    run(model, imglogdir=imglogdir, eta=opt.eta, scale=opt.scale, scale_pro=opt.scale_pro, logdir=logdir,
+    run(model, imglogdir=imglogdir, eta=opt.eta,
+        scale=opt.scale, scale_pro=opt.scale_pro, logdir=logdir,
         vanilla=opt.vanilla_sample, n_samples=opt.n_samples, custom_steps=opt.custom_steps,
         conditional_count=opt.conditional_count,
         condition_type=opt.condition_type,

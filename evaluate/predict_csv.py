@@ -18,6 +18,13 @@ def postprocess_smiles(input_smiles, scores):
             result.append(None)
         elif scores[num] < 0.88:
             # eliminate low quality images
+            # This value is highly influenced by the complexity of the molecular image
+            # (it’s generally fine for normal small molecules).
+            # For complex molecules like HBA:11,
+            # although they are generated quite well,
+            # the sketchmol model’s confidence is very low.
+            # Therefore, in out-of-distribution (OOD) situations,
+            # it is advisable to reduce this value to 0.8 or 0.7.
             low_score += 1
             result.append(None)
         else:

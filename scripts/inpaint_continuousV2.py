@@ -760,11 +760,6 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
         # target_image_path.to_csv(os.path.join(logdir, "image_path.csv"), index=False)
     elif condition_type == "mol_property_change":
         cur_csv = pd.read_csv(validation_dataset)
-        cur_csv = cur_csv[cur_csv["MolWt_label_continuous"] > 250]
-        cur_csv = cur_csv[cur_csv["Path_split"].notna()]
-        cur_csv = cur_csv.sample(n=100, random_state=42)
-        cur_csv = cur_csv.reset_index(drop=True)
-
         print("now we get {} samples".format(len(cur_csv)))
 
         target_task_pool = ["Logp", "QED", "TPSA"]
@@ -777,10 +772,11 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
         print("target task is {} optimization".format(target_task))
 
         task_pos = {"Logp": 0, "QED": 1, "TPSA": 4}
+        property_change_target = {'Logp': 2.5, "QED" : 0.3, "TPSA": 45}
         task_column_name = {"Logp": "aLogP_label_continuous", "QED": "QED_label_continuous",
                             "TPSA": "TPSA_label_continuous"}
         property_interval_dict = property_interval_determine()
-        property_change_value = abs(property_interval_dict[target_task]["max"] - property_interval_dict[target_task]["min"]) * 0.3
+        property_change_value = property_change_target['target_task']
 
         uc_list = [
             cond_dict["None_valid_mol"],
