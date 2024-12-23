@@ -52,7 +52,7 @@ https://drive.google.com/drive/folders/1rejzAzdNCjCNHxaNs7kkAZY6e0GMa5G1?usp=sha
  	--conditional_count # batch size
   	--scale # The degree of orientation towards valid image. The default is 2.
    	--scale_pro # The degree of orientation towards the desired features. The default is 2-4. This parameter can be adjusted to change the deviation of the generated molecular properties.
-    	--post # Suffix for the folder name used to save the results.
+    --post # Suffix for the folder name used to save the results.
     	
 #### Batch conversion from generated images
 	# change to molscribe conda environment
@@ -104,6 +104,7 @@ We would like to thank the authors of the following open-source projects, which 
 - [MolScribe](https://github.com/thomas0809/MolScribe) - An excellent open-source molecular OCR tool with fast speed and great performance.
 - [LDM](https://github.com/CompVis/latent-diffusion) - An excellent open-source image generation algorithm, and one of the representative works of diffusion models.
 - [pylsd](https://github.com/primetang/pylsd) - A highly useful open-source line detection tool.
+- [imagemol](https://github.com/HongxinXiang/ImageMol) - A highly accurate image-based molecular property prediction tool.
 
 Their work has greatly facilitated the progress and success of our project. If their work has also been helpful to you, please cite them.
 
