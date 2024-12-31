@@ -257,6 +257,13 @@ def ori_scaffold_sidechain_exists(example):
     return False
 
 
+# run(model, imglogdir=imglogdir, eta=opt.eta, scale=opt.scale, logdir=logdir,
+#         vanilla=opt.vanilla_sample, n_samples=opt.n_samples, custom_steps=opt.custom_steps,
+#         conditional_count=opt.conditional_count,
+#         condition_type=opt.condition_type, target_protein=opt.protein,
+#         preset_str=opt.preset_str, tri_mode=opt.tri, scale_pro=opt.scale_pro)
+
+
 def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, eta=None, n_samples=50000, nplog=None,
         conditional_count=5, scale=1, condition_type=None, target_protein=None, preset_str=None, scale_pro=1.,
         tri_mode=False):
@@ -399,7 +406,7 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
     target_image_path.to_csv(os.path.join(logdir, "image_path.csv"), index=False)
     print(f"path save to {logdir}/image_path.csv")
     print("done.")
-    print(f"sampling of {n_saved} images finished in {(time.time() - tstart) / 60.:.2f} minutes.")
+    # print(f"sampling of {n_saved} images finished in {(time.time() - tstart) / 60.:.2f} minutes.")
 
 
 def save_logs(logs, path, n_saved=0, key="sample", np_path=None):
@@ -446,7 +453,7 @@ def get_parser():
         type=int,
         nargs="?",
         help="number of each sample to draw",
-        default=10
+        default=5
     )
     parser.add_argument(
         "-e",

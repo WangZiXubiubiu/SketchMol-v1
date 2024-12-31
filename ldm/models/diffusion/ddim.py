@@ -282,7 +282,7 @@ class DDIMSampler(object):
                 img = img_orig * mask + (1. - mask) * img
 
             if triangle_sampling:
-                print("triangle sampling")
+                # print("triangle sampling")
                 outs = self.p_sample_ddim_triangle(img, cond, property_conditioning, ts, index=index, use_original_steps=ddim_use_original_steps,
                                           quantize_denoised=quantize_denoised, temperature=temperature,
                                           noise_dropout=noise_dropout, score_corrector=score_corrector,

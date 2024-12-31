@@ -14,7 +14,7 @@ model:
     image_size: 32
     channels: 4
     monitor: val/loss_simple_ema
-    use_ema: false
+    use_ema: true
 
     unet_config:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel

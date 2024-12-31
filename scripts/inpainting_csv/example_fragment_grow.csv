@@ -1,0 +1,3 @@
+Path,Path_keep
+./scripts/inpainting_csv/example_EP4_fragment_grow.png,./scripts/inpainting_csv/example_fragment1.png
+./scripts/inpainting_csv/example_EP4_fragment_grow.png,./scripts/inpainting_csv/example_fragment2.png

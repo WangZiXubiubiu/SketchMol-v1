@@ -16,10 +16,13 @@ def postprocess_smiles(input_smiles, scores):
             broken_num += 1
         elif "invalid" in input_smiles[num]:
             result.append(None)
-        elif scores[num] < 0.88:
+        elif scores[num] < 0.85:
             # eliminate low quality images
+            # This value is highly influenced by the complexity of the molecular image
+            # It works with small datasets, but if the dataset is large (millions),
+            # it is advisable to reduce this value to 0.8 or 0.7.
             low_score += 1
-            result.append(None)
+            result.append(input_smiles[num])
         else:
             result.append(input_smiles[num])
     return result, broken_num/all_smiles, low_score/all_smiles

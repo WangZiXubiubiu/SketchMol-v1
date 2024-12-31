@@ -180,7 +180,7 @@ def valset_input_construct_helper_and_sample(input_df, cond_dict, sampler, model
                                              batch_size=1,
                                              custom_steps=None,
                                              eta=1.0,
-                                             scale=1.0, scale_pro=1.0,
+                                             scale=1.0, scale_pro=1.0, tri_mode=None
                                              ):
     # sample according to each line in input_df
 
@@ -206,7 +206,10 @@ def valset_input_construct_helper_and_sample(input_df, cond_dict, sampler, model
                        float(row["rotatable"])
                        ]
         property_set, property_set_dict = property_masker(cur_example, cond_dict, property_constrained)
-        property_set = [cond_dict["None_valid_mol"], cond_dict["matched_property"]] + property_set
+        if tri_mode:
+            property_set = [cond_dict["None_valid_mol"], cond_dict["matched_property"]] + property_set
+        else:
+            property_set = [cond_dict["valid_mol"], cond_dict["matched_property"]] + property_set
         property_set_dict = [True, True] + property_set_dict
 
         uc_list = [
@@ -229,8 +232,9 @@ def valset_input_construct_helper_and_sample(input_df, cond_dict, sampler, model
             if property_set_dict[property_set_dict_index] == False:
                 uc_list[property_set_dict_index] = midvalue[property_set_dict_index]
                 uc_list_dict[property_set_dict_index] = False
-                valid_list[property_set_dict_index] = midvalue[property_set_dict_index]
-                valid_list_dict[property_set_dict_index] = False
+                if tri_mode:
+                    valid_list[property_set_dict_index] = midvalue[property_set_dict_index]
+                    valid_list_dict[property_set_dict_index] = False
 
         input_property_set.append(property_set)
         input_property_set_dict.append(property_set_dict)
@@ -259,18 +263,29 @@ def valset_input_construct_helper_and_sample(input_df, cond_dict, sampler, model
         valid_c = model.get_learned_conditioning(valid_input)
         property_c = model.get_learned_conditioning(condition_input)
 
-        samples_ddim, _ = sampler.sample(S=custom_steps,
-                                         batch_size=batch_size,
-                                         shape=shape,
-                                         verbose=False,
-                                         eta=eta,
-                                         triangle_sampling=True,
-                                         unconditional_conditioning=uc,
-                                         conditioning=valid_c,
-                                         property_conditioning=property_c,
-                                         unconditional_guidance_scale=scale,
-                                         property_condition_scale=scale_pro,
-                                         )
+        if tri_mode:
+            samples_ddim, _ = sampler.sample(S=custom_steps,
+                                             batch_size=batch_size,
+                                             shape=shape,
+                                             verbose=False,
+                                             eta=eta,
+                                             triangle_sampling=tri_mode,
+                                             unconditional_conditioning=uc,
+                                             conditioning=valid_c,
+                                             unconditional_guidance_scale=scale,
+                                             property_conditioning=property_c,
+                                             property_condition_scale=scale_pro,
+                                             )
+        else:
+            samples_ddim, _ = sampler.sample(S=custom_steps,
+                                             conditioning=property_c,
+                                             batch_size=batch_size,
+                                             shape=shape,
+                                             verbose=False,
+                                             unconditional_guidance_scale=scale,
+                                             unconditional_conditioning=uc,
+                                             triangle_sampling=tri_mode,
+                                             eta=eta)
 
         x_samples_ddim = model.decode_first_stage(samples_ddim)
         x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
@@ -372,8 +387,11 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
                 property_set_dict.append(False)
                 uc_list[id + 2] = midvalue[id]
                 uc_list_dict[id + 2] = False
-                valid_list[id+2] = midvalue[id]
-                valid_list_dict[id+2] = False
+                if tri_mode:
+                    # can change to input_value
+                    # depends on the task
+                    valid_list[id+2] = midvalue[id]
+                    valid_list_dict[id+2] = False
         print("current midvalue is setting as {}".format(valid_list_dict))
 
         print("Your Sample condition is :")
@@ -420,7 +438,7 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
                                              batch_size=conditional_count,
                                              custom_steps=custom_steps,
                                              eta=eta,
-                                             scale=scale, scale_pro=scale_pro,
+                                             scale=scale, scale_pro=scale_pro, tri_mode=tri_mode
                                              )
 
             cur_batch_index = 0
@@ -468,7 +486,7 @@ def get_parser():
         type=int,
         nargs="?",
         help="number of each smiles to draw",
-        default=10
+        default=5
     )
     parser.add_argument(
         "-e",

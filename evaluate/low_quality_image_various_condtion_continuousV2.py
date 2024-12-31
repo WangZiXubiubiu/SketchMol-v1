@@ -10,7 +10,7 @@ def property_interval_determine():
     logp_interval = {"min": -2, "max": 7}
     qed_interval = {"min": 0, "max": 1}
     sa_interval = {"min": 1.5, "max": 4}
-    molwt_interval = {"min": 50, "max": 600}
+    molwt_interval = {"min": 150, "max": 600}
     tpsa_interval = {"min": 0, "max": 150}
     hbd_interval = {"min": 0, "max": 5}
     hba_interval = {"min": 0, "max":10}
@@ -94,8 +94,26 @@ def main():
         for index, row in all.iterrows():
             pbar.update(1)
             cur_mol = get_mol(row["SMILES"])
+            if 'molscribe_score' in all.columns:
+                if row["molscribe_score"] < 0.85:
+                    # This threshold will inevitably classify some molecular images that appear completely normal
+                    # to humans as invalid molecules. Currently, this is merely a compromise solution for
+                    # large scale evaluation.
+                    target_path_csv.append([row["image_path"],
+                                            row["SMILES"],
+                                            cond_dict["None_property"],
+                                            cond_dict["None_logp"],
+                                            cond_dict["None_QED"],
+                                            cond_dict["None_SA"],
+                                            cond_dict["None_MolWt"],
+                                            cond_dict["None_TPSA"],
+                                            cond_dict["None_HBD"],
+                                            cond_dict["None_HBA"],
+                                            cond_dict["None_rotatable"]
+                                            ] + invalid_property_dict)
+                    error_invalid_mol += 1
+                    continue
 
-            # 保证分子为有效分子
             if cur_mol == None or pd.isna(cur_mol):
                 target_path_csv.append([row["image_path"],
                                         row["SMILES"],
@@ -160,7 +178,6 @@ def main():
             available_property_list = ["Logp", "QED", "SA", "MolWt", "TPSA", "HBD", "HBA", "rotatable"]
 
             violate_count = 0
-            # 保证分子的性质在设置的范围内
             for label_index in range(len(mol_setting)):
                 if mol_setting_dict[label_index]:
                     continue

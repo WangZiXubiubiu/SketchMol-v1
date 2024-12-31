@@ -167,6 +167,7 @@ class pubchemBase_various_continuousV2(Dataset):
                  interpolation="bicubic",
                  invalid_mode=False,
                  sampled_invalid_image_path=None,
+                 sampled_expand_image_path=None,
                  target_column=None,
                  rediscovery_mode=False
                  ):
@@ -210,6 +211,13 @@ class pubchemBase_various_continuousV2(Dataset):
                 "rotatable": self.data_csv["rotatable"]
             }
         self._length = len(self.data_csv)
+
+        self.sampled_expand_image_path = sampled_expand_image_path
+        if sampled_expand_image_path is not None:
+            # data augmentation
+            self.sampled_expand_image = pd.read_csv(sampled_expand_image_path)
+            self.sampled_expand_image_len = len(self.sampled_expand_image)
+            print("sampled_expand_image_len: ", self.sampled_expand_image_len)
 
         self._cond_dict()
         self.property_interval_dict = self.property_interval_determine(self.labels)
@@ -376,7 +384,7 @@ class pubchemBase_various_continuousV2(Dataset):
         if self.invalid_mode:
             # three type of data construction
             # 30% random invalid images from Invalid_Image_pool
-            # 70% random valid images from file_path_canimage/file_path_oriimage with its properties
+            # 70% random valid images
             cur_dice = random.random()
 
             none_property_list = [self.cond_dict["None_logp"],
@@ -391,7 +399,6 @@ class pubchemBase_various_continuousV2(Dataset):
             none_property_from_dict = [True] * len(none_property_list)
             if cur_dice < 0.3:
                 invalid_from_where_dice = random.random()
-                # 20% random invalid images from Invalid_Image_pool   1:1:8 if resampled stage else 1:1:0
                 if self.sampled_invalid_image_path is None or invalid_from_where_dice < 0.3:
                     if random.random() < 0.5:
                         # invalid mode1: random invalid mol images
@@ -413,7 +420,7 @@ class pubchemBase_various_continuousV2(Dataset):
                         mutate_property_list = self.property_mutate_helper(cur_property_list,
                                                                            cur_property_list_dict,
                                                                            self.property_interval_dict)
-                        list_for_property_condition = [self.cond_dict["valid_mol"],
+                        list_for_property_condition = [self.cond_dict["None_valid_mol"],
                                                        self.cond_dict["unmatched_property"]
                                                        ] + mutate_property_list
                         list_for_whether_property_from_dict = [True, True] + cur_property_list_dict
@@ -449,13 +456,13 @@ class pubchemBase_various_continuousV2(Dataset):
                     list_for_property_condition = prefix + list_for_property_condition
                     list_for_whether_property_from_dict = [True, True] + list_for_whether_property_from_dict
             else:
-                # 70% random valid images from file_path_canimage/file_path_oriimage with its properties
                 available_pool = [example["file_path_canimage"]]
                 if not pd.isna(example["file_path_oriimage"]):
                     available_pool.append(example["file_path_oriimage"])
                 cur_img_path = random.choice(available_pool)
+
                 cur_property_list, cur_property_list_dict = self.sampleproperty_to_list(example, self.cond_dict,
-                                                                                        mask_mode=True)
+                                                                                            mask_mode=True)
                 list_for_property_condition = [self.cond_dict["valid_mol"],
                                                self.cond_dict["matched_property"]
                                                ] + cur_property_list
@@ -527,13 +534,6 @@ class pubchemBase_single_protein(pubchemBase_various_continuousV2):
                                                   rediscovery_mode=rediscovery_mode)
 
         self.labels[target_protein+"_activity"] = self.data_csv[target_protein+"_activity"] if (target_protein+"_activity") in self.data_csv.columns else [None] * self._length
-        
-        self.sampled_expand_image_path = sampled_expand_image_path
-        if sampled_expand_image_path is not None:
-            # data augmentation
-            self.sampled_expand_image = pd.read_csv(sampled_expand_image_path)
-            self.sampled_expand_image_len = len(self.sampled_expand_image)
-            print("sampled_expand_image_len: ", self.sampled_expand_image_len)
 
     @staticmethod
     def build_dict():

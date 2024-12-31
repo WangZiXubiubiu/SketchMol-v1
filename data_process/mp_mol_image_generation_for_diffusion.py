@@ -79,11 +79,11 @@ def image_save(ori_data, target_path):
                 cur_mol = get_mol(smiles_ori[num])
                 if cur_mol is None:
                     raise ValueError()
-                Draw.MolToFile(cur_mol, target_path + "/{}.svg".format(num), wedgeBonds=False)
-                cairosvg.svg2png(url=target_path + "/{}.svg".format(num),
-                                 write_to=target_path + "/{}.png".format(num))
-                os.remove(target_path + "images/" + "{}.svg".format(num))
-                mol_path.append(target_path + "/{}.png".format(num))
+                Draw.MolToFile(cur_mol, cur_target_path + "/{}.svg".format(num), wedgeBonds=False)
+                cairosvg.svg2png(url=cur_target_path + "/{}.svg".format(num),
+                                 write_to=cur_target_path + "/{}.png".format(num))
+                os.remove(cur_target_path + "/{}.svg".format(num))
+                mol_path.append(cur_target_path + "/{}.png".format(num))
                 mol_path_split.append(None)
 
                 # middle_bond_index, middle_bond = find_middle_non_ring_bond(cur_mol)
