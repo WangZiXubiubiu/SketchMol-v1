@@ -61,8 +61,7 @@ def make_conditional_sample_mask_version(sampler,
 
     if condition_type in ["mol_property_change", "mol_various_preset"]:
         input_image = df_data["Path"]
-    else:
-        input_image = df_data["ori_path"]
+
     batch = make_batch(input_image, batch_size, mask_shape=shape, mask_from_where=mask_from_where,
                        df_data=df_data, zoom_factor=zoom_factor)
 
@@ -154,181 +153,6 @@ def make_conditional_sample_mask_version(sampler,
     return log
 
 
-def ori_scaffold_sidechain_exists(example):
-    if not pd.isna(example["sidechain_number"]):
-        if int(example["sidechain_number"]) > 0:
-            return True
-    return False
-
-
-def input_construct_helper_and_sample(input_df, cond_dict, sampler, model,
-                                      batch_size=1,
-                                      custom_steps=None,
-                                      eta=1.0,
-                                      scale=1.0, scale_pro=1.0,
-                                      tri_mode = None,
-                                      mask_from_where=None,
-                                      zoom_factor=None,
-                                      repaint_time=None
-                                      ):
-    # sample according to each line in input_df
-
-    midvalue = [None, None,
-                3.428, 0.6266, None, 366., 68., 1.0, 4.0, 5.0
-                ]
-
-    shape = [ batch_size,
-            model.model.diffusion_model.in_channels,
-             model.model.diffusion_model.image_size,
-             model.model.diffusion_model.image_size]
-
-    input_property_set = []
-    input_property_set_dict = []
-    input_uc_list = []
-    input_uc_list_dict = []
-    input_valid_list = []
-    input_valid_list_dict = []
-    x0_list = []
-    mask_list = []
-
-    for row_index, row in input_df.iterrows():
-        example_dict = {"Logp": float(row["aLogP_label_continuous"]),
-                        "QED": float(row["QED_label_continuous"]),
-                        "SA": float(row["SAscore_label_continuous"]),
-                        "MolWt": float(row["MolWt_label_continuous"]),
-                        "TPSA": float(row["TPSA_label_continuous"]),
-                        "HBD": float(row["HBD"]),
-                        "HBA": float(row["HBA"]),
-                        "rotatable": float(row["rotatable"])
-                        }
-        property_extraction, property_extraction_from_dict = JianminBase_various_continuousV2.sampleproperty_to_list(
-            example_dict, cond_dict, mask_mode=True)
-
-        if tri_mode:
-            property_set = [cond_dict["None_valid_mol"], cond_dict["matched_property"]] + property_extraction
-        else:
-            property_set = [cond_dict["valid_mol"], cond_dict["matched_property"]] + property_extraction
-        property_set_dict = [True, True] + property_extraction_from_dict
-
-        uc_list = [
-            cond_dict["None_valid_mol"],
-            cond_dict["None_property"],
-            cond_dict["None_logp"],
-            cond_dict["None_QED"],
-            cond_dict["None_SA"],
-            cond_dict["None_MolWt"],
-            cond_dict["None_TPSA"],
-            cond_dict["None_HBD"],
-            cond_dict["None_HBA"],
-            cond_dict["None_rotatable"]
-        ]
-        uc_list_dict = [True] * len(uc_list)
-        for property_set_dict_index in range(len(property_set_dict)):
-            if property_set_dict[property_set_dict_index] == False:
-                uc_list[property_set_dict_index] = midvalue[property_set_dict_index]
-                uc_list_dict[property_set_dict_index] = False
-
-        if tri_mode:
-            valid_list = [cond_dict["valid_mol"]] + uc_list[1:]
-            valid_list_dict = uc_list_dict
-        else:
-            valid_list, valid_list_dict = None, None
-
-        input_property_set.append(property_set)
-        input_property_set_dict.append(property_set_dict)
-        input_uc_list.append(uc_list)
-        input_uc_list_dict.append(uc_list_dict)
-        input_valid_list.append(valid_list)
-        input_valid_list_dict.append(valid_list_dict)
-
-        if mask_from_where == "scaffold":
-            input_image = row["ori_path"]
-        else:
-            if not pd.isna(row["ori_path"]):
-                input_image = row["ori_path"] if random.random() > 0.5 else row["Path"]
-            else:
-                input_image = row["Path"]
-        x_0_mask = make_batch(input_image, batch_size=1,
-                              mask_shape=shape, mask_from_where=mask_from_where,
-                              df_data=row, zoom_factor=zoom_factor)
-        x0_list.append(x_0_mask["image"])
-        mask_list.append(x_0_mask["mask"])
-
-    uc_input = {
-        "various_conditions": torch.tensor(input_uc_list).to(dtype=torch.float32, device=model.device),
-        "various_conditions_discrete": torch.tensor(input_uc_list_dict).to(dtype=torch.bool, device=model.device)}
-    condition_input = {
-        "various_conditions": torch.tensor(input_property_set).to(dtype=torch.float32, device=model.device),
-        "various_conditions_discrete": torch.tensor(input_property_set_dict).to(dtype=torch.bool, device=model.device)}
-    if tri_mode:
-        valid_input = {
-            "various_conditions": torch.tensor(input_valid_list).to(dtype=torch.float32, device=model.device),
-            "various_conditions_discrete": torch.tensor(input_valid_list_dict).to(dtype=torch.bool, device=model.device)}
-
-    # image combination
-    x0_list = torch.cat(x0_list, dim=0)
-    mask_list = torch.cat(mask_list, dim=0)
-
-    log = dict()
-
-    t0 = time.time()
-    with model.ema_scope():
-        encoder_posterior = model.encode_first_stage(x0_list)
-        x0 = model.get_first_stage_encoding(encoder_posterior).detach()
-        mask = mask_list
-
-        uc = model.get_learned_conditioning(uc_input)
-        property_c = model.get_learned_conditioning(condition_input)
-
-        if tri_mode:
-            valid_c = model.get_learned_conditioning(valid_input)
-
-        if tri_mode:
-            samples_ddim, _ = sampler.sample(S=custom_steps,
-                                             conditioning=valid_c,
-                                             batch_size=batch_size,
-                                             shape=shape[1:],
-                                             verbose=False,
-                                             unconditional_guidance_scale=scale,
-                                             unconditional_conditioning=uc,
-                                             eta=eta,
-                                             triangle_sampling=tri_mode,
-                                             property_conditioning=property_c,
-                                             property_condition_scale=scale_pro,
-
-                                             x0=x0,
-                                             mask=mask,
-                                             repaint=True,  # !!!!!!
-                                             repaint_time=repaint_time
-                                             )
-        else:
-            samples_ddim, _ = sampler.sample(S=custom_steps,
-                                             conditioning=property_c,
-                                             batch_size=batch_size,
-                                             shape=shape[1:],
-                                             verbose=False,
-                                             unconditional_guidance_scale=scale,
-                                             unconditional_conditioning=uc,
-                                             triangle_sampling=tri_mode,
-                                             eta=eta,
-
-                                             x0=x0,
-                                             mask=mask,
-                                             repaint=True,  # !!!!!!
-                                             repaint_time=repaint_time
-                                             )
-
-        x_samples_ddim = model.decode_first_stage(samples_ddim)
-        x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
-
-    t1 = time.time()
-    log["sample"] = x_samples_ddim
-    log["time"] = t1 - t0
-    log['throughput'] = x_samples_ddim.shape[0] / (t1 - t0)
-
-    return log, input_property_set, input_property_set_dict
-
-
 def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, eta=None, n_samples=50000,
         conditional_count=5, scale=1., condition_type=None, preset_str=None, scale_pro=1., tri_mode=False,
         target_sample=0,  validation_dataset=None, mask_from_where=None, zoom_factor=None, repaint_time=3):
@@ -343,7 +167,6 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
     final_image_results = []
 
     if condition_type == "mol_various_preset":
-        # rewrite uclisnt
         uc_list = [
             cond_dict["None_valid_mol"],
             cond_dict["None_property"],
@@ -371,7 +194,7 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
             valid_list, valid_list_dict = None, None
         property_set_dict = [True, True]
 
-        midvalue = [
+        negvalue = [
             3.428, 0.6266, None, 366., 68., 1.0, 4.0, 5.0
         ]
 
@@ -383,16 +206,8 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
         extract_string = extract_values(keywords, cur_string)
         for id, value in enumerate(extract_string):
             if id < 8:
-                if value == None:
-                    property_set.append(uc_list[id + 2])
-                    property_set_dict.append(True)
-                else:
-                    property_set.append(value)
-                    property_set_dict.append(False)
-                    uc_list[id + 2] = midvalue[id]
-                    uc_list_dict[id + 2] = False
-                    valid_list[id + 2] = midvalue[id]
-                    valid_list_dict[id + 2] = False
+                property_set.append(uc_list[id + 2])
+                property_set_dict.append(True)
             else:
                 if id == 8:
                     property_set.append(cond_dict["matched_protein"])
@@ -461,7 +276,129 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
                                                                    "rotatable_None",
                                                                    "image_path"])
         target_image_path.to_csv(os.path.join(logdir, "image_path.csv"), index=False)
+    elif condition_type == "mol_bio_change":
+        cur_csv = pd.read_csv(validation_dataset)
+        cur_csv = cur_csv[cur_csv["Path_split"].notna()]
+        cur_csv = cur_csv.reset_index(drop=True)
 
+        print("now we get {} samples".format(len(cur_csv)))
+
+        target_task_pool = ["EP4", "ROCK1", "AKT1"]
+        target_task = None
+        for task in target_task_pool:
+            if task.lower() in validation_dataset.lower():
+                target_task = task
+                break
+        assert target_task is not None, "target task is not available"
+        print("target task is {} optimization".format(target_task))
+
+        uc_list = [
+            cond_dict["None_valid_mol"],
+            cond_dict["None_property"],
+            cond_dict["None_logp"],
+            cond_dict["None_QED"],
+            cond_dict["None_SA"],
+            cond_dict["None_MolWt"],
+            cond_dict["None_TPSA"],
+            cond_dict["None_HBD"],
+            cond_dict["None_HBA"],
+            cond_dict["None_rotatable"],
+            cond_dict["unmatched_protein"],
+            cond_dict["Act_" + target_task]
+        ]
+        uc_list_dict = [True] * len(uc_list)
+
+        if tri_mode:
+            property_set = [cond_dict["None_valid_mol"], cond_dict["None_property"]]
+        else:
+            property_set = [cond_dict["valid_mol"], cond_dict["None_property"]]
+        property_set_dict = [True, True]
+
+        property_post = [
+            cond_dict["None_logp"],
+            cond_dict["None_QED"],
+            cond_dict["None_SA"],
+            cond_dict["None_MolWt"],
+            cond_dict["None_TPSA"],
+            cond_dict["None_HBD"],
+            cond_dict["None_HBA"],
+            cond_dict["None_rotatable"],
+            cond_dict["matched_protein"],
+            cond_dict["Act_{}".format(target_task)]
+        ]
+        property_post_dict = [True] * len(property_post)
+
+        property_set = property_set + property_post
+        property_set_dict = property_set_dict + property_post_dict
+
+        if tri_mode:
+            print("valid_scale:{}".format(float(scale)), "property_scale:{}".format(float(scale_pro)))
+            valid_list = [cond_dict["valid_mol"]] + uc_list[1:]
+            valid_list[-2] = cond_dict["None_protein"]
+            valid_list[-1] = cond_dict["Act_{}".format(target_task)]
+
+            valid_list_dict = property_set_dict
+        else:
+            print("scale:{}".format(float(scale)))
+            valid_list, valid_list_dict = None, None
+
+        print(f"Running conditional sampling for {n_samples} samples")
+        print(f"each condition have {conditional_count} samples")
+        print(f"so finally, output image is {conditional_count * n_samples}")
+
+        final_image_results = []
+
+        for i in trange(len(cur_csv), desc="Sampling Batches (conditional)"):
+            cur_imglogdir = os.path.join(imglogdir, str(i))
+            os.makedirs(cur_imglogdir, exist_ok=True)
+            # get line
+            row = cur_csv.iloc[i, :]
+            cur_smiles = row["SMILES"]
+            # cur_bio_active_rate = row["imagemol_predict_score"]
+
+            logs = make_conditional_sample_mask_version(sampler, model,
+                                                        batch_size=conditional_count,
+                                                        custom_steps=custom_steps,
+                                                        eta=eta, scale=scale,
+                                                        property_set=property_set,
+                                                        property_set_dict=property_set_dict,
+                                                        uc_list=uc_list,
+                                                        uc_list_dict=uc_list_dict,
+                                                        tri_mode=tri_mode,
+                                                        valid_list=valid_list,
+                                                        valid_list_dict=valid_list_dict,
+                                                        scale_pro=scale_pro,
+                                                        df_data=row,
+                                                        mask_from_where=mask_from_where,
+                                                        zoom_factor=zoom_factor,
+                                                        repaint_time=repaint_time,
+                                                        condition_type="mol_property_change")
+            for index, x_sample in enumerate(logs["sample"]):
+                x_sample = 255. * rearrange(x_sample.cpu().numpy(), 'c h w -> h w c')
+                Image.fromarray(x_sample.astype(np.uint8)).save(os.path.join(cur_imglogdir, f"{i}_{n_saved}.png"))
+                cur_image_path = os.path.join(cur_imglogdir, f"{i}_{n_saved}.png")
+                n_saved += 1
+                final_image_results.append(
+                    property_set[2:10] + [property_set[11]] + property_set_dict[2:10] + [cur_image_path, cur_smiles, target_task])
+                # final_image_results.append(
+                #     property_set[2:10] + [property_set[11]] + property_set_dict[2:10] + [cur_image_path, cur_smiles, cur_bio_active_rate, target_task])
+            ori_image = 255. * rearrange(logs["ori_image"].cpu().numpy(), 'c h w -> h w c')
+            Image.fromarray(ori_image.astype(np.uint8)).save(os.path.join(cur_imglogdir, "ori.png"))
+
+            cv2.imwrite(os.path.join(cur_imglogdir, "mask.png"), logs["mask_for_visiual"])
+
+            # ori_image = 255. * rearrange(logs["ori_image_decode"].cpu().numpy(), 'c h w -> h w c')
+            # Image.fromarray(ori_image.astype(np.uint8)).save(os.path.join(cur_imglogdir, "ori_image_decode.png"))
+
+        target_image_path = pd.DataFrame(final_image_results, columns=["logp_setting", "QED_setting", "SA_setting",
+                                                                   "MolWt_setting", "TPSA_setting", "HBD_setting",
+                                                                   "HBA_setting", "rotatable_setting",
+                                                                   "{}_setting".format(target_task),
+                                                                   "logp_None", "QED_None", "SA_None", "MolWt_None",
+                                                                   "TPSA_None", "HBD_None", "HBA_None",
+                                                                   "rotatable_None",
+                                                                   "image_path", "smiles", "target_protein"])
+        target_image_path.to_csv(os.path.join(logdir, "image_path.csv"), index=False)
 
 
     print(f"path save to {logdir}/image_path.csv")
@@ -507,7 +444,7 @@ def get_parser():
         type=int,
         nargs="?",
         help="index of sample from validation dataset to draw",
-        default=10
+        default=5
     )
     parser.add_argument(
         "-v",
@@ -542,7 +479,7 @@ def get_parser():
         "--scale_pro",
         type=float,
         nargs="?",
-        default=6,
+        default=2,
         help="unconditional gudience"
     )
     parser.add_argument(
@@ -563,11 +500,6 @@ def get_parser():
         default="",
     )
     parser.add_argument(
-        "--proerty_num",
-        type=int,
-        default=2,
-    )
-    parser.add_argument(
         "--mask_from_where",
         type=str,
         nargs="?",
@@ -577,7 +509,7 @@ def get_parser():
         "--zoom_factor",
         type=float,
         default=1,
-        help="image zoom ratio 0.9 is great for most test cases"
+        help="image zoom ratio 0.95-1.02 is great for most test cases, below is terrible"
     )
     parser.add_argument(
         "--repaint_time",
@@ -611,14 +543,14 @@ def load_model(config, ckpt, gpu, eval_mode):
     if ckpt:
         print(f"Loading model from {ckpt}")
         pl_sd = torch.load(ckpt, map_location="cpu")
-        global_step = pl_sd["global_step"]
+        # global_step = pl_sd["global_step"]
     else:
         pl_sd = {"state_dict": None}
-        global_step = None
+        # global_step = None
     model = load_model_from_config(config.model,
                                    pl_sd["state_dict"])
 
-    return model, global_step
+    return model
 
 
 if __name__ == "__main__":
@@ -668,8 +600,7 @@ if __name__ == "__main__":
 
     print(config)
 
-    model, global_step = load_model(config, ckpt, gpu, eval_mode)
-    print(f"global step: {global_step}")
+    model = load_model(config, ckpt, gpu, eval_mode)
     print(75 * "=")
     print("logging to:")
     logdir = os.path.join(logdir, now + opt.post, "samples")
@@ -689,7 +620,8 @@ if __name__ == "__main__":
         yaml.dump(sampling_conf, f, default_flow_style=False)
     print(sampling_conf)
 
-    run(model, imglogdir=imglogdir, eta=opt.eta, scale=opt.scale, scale_pro=opt.scale_pro, logdir=logdir,
+    run(model, imglogdir=imglogdir, eta=opt.eta,
+        scale=opt.scale, scale_pro=opt.scale_pro, logdir=logdir,
         vanilla=opt.vanilla_sample, n_samples=opt.n_samples, custom_steps=opt.custom_steps,
         conditional_count=opt.conditional_count,
         condition_type=opt.condition_type,

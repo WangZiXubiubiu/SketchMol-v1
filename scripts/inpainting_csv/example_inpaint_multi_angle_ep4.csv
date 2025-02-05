@@ -1,0 +1,10 @@
+Path,Path_keep
+./scripts/inpainting_csv/example_image_ep4_multi_angle.png,./scripts/inpainting_csv/example_image_ep4_multi_angle_mask1.png
+./scripts/inpainting_csv/example_image_ep4_multi_angle.png,./scripts/inpainting_csv/example_image_ep4_multi_angle_mask2.png
+./scripts/inpainting_csv/example_image_ep4_multi_angle.png,./scripts/inpainting_csv/example_image_ep4_multi_angle_mask3.png
+./scripts/inpainting_csv/example_image_ep4_multi_angle.png,./scripts/inpainting_csv/example_image_ep4_multi_angle_mask4.png
+./scripts/inpainting_csv/example_image_ep4_multi_angle.png,./scripts/inpainting_csv/example_image_ep4_multi_angle_mask5.png
+./scripts/inpainting_csv/example_image_ep4_multi_angle.png,./scripts/inpainting_csv/example_image_ep4_multi_angle_mask6.png
+./scripts/inpainting_csv/example_image_ep4_multi_angle.png,./scripts/inpainting_csv/example_image_ep4_multi_angle_mask7.png
+./scripts/inpainting_csv/example_image_ep4_multi_angle.png,./scripts/inpainting_csv/example_image_ep4_multi_angle_mask8.png
+./scripts/inpainting_csv/example_image_ep4_multi_angle.png,./scripts/inpainting_csv/example_image_ep4_multi_angle_mask9.png

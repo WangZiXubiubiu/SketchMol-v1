@@ -34,8 +34,8 @@ def main(args):
                 cur_mol_property_result = {key: cur_avilable_property_dict[key](cur_mol)
                                            for key in cur_avilable_property_dict.keys()}
 
-                if cur_mol_property_result["SA"] > 4.5:
-                    continue
+                # if cur_mol_property_result["SA"] > 4.5:
+                #     continue
 
                 target_path_csv.append([
                                         cur_mol_property_result["Logp"],

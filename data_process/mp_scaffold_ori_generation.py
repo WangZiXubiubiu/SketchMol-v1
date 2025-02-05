@@ -159,9 +159,6 @@ def image_generation(target_SMILES, target_path, cur_index):
     smis.append(target_SMILES)
     smis.append(template_SMILES)
     # smis.append(SMILES_scaffold)
-    DrawingOptions.atomLabelFontSize = 50
-    DrawingOptions.dotsPerAngstrom = 100
-    DrawingOptions.bondLineWidth = 3
     template = Chem.MolFromSmiles(template_SMILES)
     AllChem.Compute2DCoords(template)
 

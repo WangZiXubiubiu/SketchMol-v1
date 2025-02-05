@@ -257,14 +257,16 @@ def ori_scaffold_sidechain_exists(example):
     return False
 
 
+# run(model, imglogdir=imglogdir, eta=opt.eta, scale=opt.scale, logdir=logdir,
+#         vanilla=opt.vanilla_sample, n_samples=opt.n_samples, custom_steps=opt.custom_steps,
+#         conditional_count=opt.conditional_count,
+#         condition_type=opt.condition_type, target_protein=opt.protein,
+#         preset_str=opt.preset_str, tri_mode=opt.tri, scale_pro=opt.scale_pro)
+
+
 def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, eta=None, n_samples=50000, nplog=None,
         conditional_count=5, scale=1, condition_type=None, target_protein=None, preset_str=None, scale_pro=1.,
         tri_mode=False):
-    if vanilla:
-        print(f'Using Vanilla DDPM sampling with {model.num_timesteps} sampling steps.')
-    else:
-        print(f'Using DDIM sampling with {custom_steps} sampling steps and eta={eta}')
-
     tstart = time.time()
     n_saved = len(glob.glob(os.path.join(imglogdir, '*.png')))
 
@@ -274,7 +276,7 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
     sampler = DDIMSampler(model)
     final_image_results = []
 
-    midvalue = [
+    negvalue = [
         3.428, 0.6266, None, 366., 68., 1.0, 4.0, 5.0,
     ]
 
@@ -298,12 +300,12 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
         uc_list_dict = [True] * len(uc_list)
 
         if tri_mode:
-            property_set = [cond_dict["None_valid_mol"], cond_dict["None_property"]]
+            property_set = [cond_dict["None_valid_mol"], cond_dict["matched_property"]]
             print("valid_scale:{}".format(float(scale)), "property_scale:{}".format(float(scale_pro)))
             valid_list = [cond_dict["valid_mol"]] + uc_list[1:]
             valid_list_dict = uc_list_dict
         else:
-            property_set = [cond_dict["valid_mol"], cond_dict["None_property"]]
+            property_set = [cond_dict["valid_mol"], cond_dict["matched_property"]]
             print("scale:{}".format(float(scale)))
             valid_list, valid_list_dict = None, None
 
@@ -317,16 +319,8 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
         extract_string = extract_values(keywords, cur_string)
         for id, value in enumerate(extract_string):
             if id < 8:
-                if value == None:
-                    property_set.append(uc_list[id + 2])
-                    property_set_dict.append(True)
-                else:
-                    property_set.append(value)
-                    property_set_dict.append(False)
-                    uc_list[id + 2] = midvalue[id]
-                    uc_list_dict[id + 2] = False
-                    valid_list[id + 2] = midvalue[id]
-                    valid_list_dict[id + 2] = False
+                property_set.append(uc_list[id + 2])
+                property_set_dict.append(True)
             else:
                 if id == 8:
                     property_set.append(cond_dict["matched_protein"])
@@ -399,7 +393,7 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
     target_image_path.to_csv(os.path.join(logdir, "image_path.csv"), index=False)
     print(f"path save to {logdir}/image_path.csv")
     print("done.")
-    print(f"sampling of {n_saved} images finished in {(time.time() - tstart) / 60.:.2f} minutes.")
+    # print(f"sampling of {n_saved} images finished in {(time.time() - tstart) / 60.:.2f} minutes.")
 
 
 def save_logs(logs, path, n_saved=0, key="sample", np_path=None):
@@ -446,7 +440,7 @@ def get_parser():
         type=int,
         nargs="?",
         help="number of each sample to draw",
-        default=10
+        default=5
     )
     parser.add_argument(
         "-e",
@@ -489,8 +483,8 @@ def get_parser():
         "--scale_pro",
         type=float,
         nargs="?",
-        default=4,
-        help="you may adjust this value for property-constrained generation "
+        default=8,
+        help="you may adjust this value for protein-constrained generation "
     )
     parser.add_argument(
         "--protein",
@@ -506,8 +500,6 @@ def get_parser():
         "--condition_type",
         type=str,
         default="mol_various_preset",
-        # mol_various_random_from_dataset,
-        # mol_various_preset,
     )
     parser.add_argument(
         "-p",
@@ -536,14 +528,14 @@ def load_model(config, ckpt, gpu, eval_mode):
     if ckpt:
         print(f"Loading model from {ckpt}")
         pl_sd = torch.load(ckpt, map_location="cpu")
-        global_step = pl_sd["global_step"]
+        # global_step = pl_sd["global_step"]
     else:
         pl_sd = {"state_dict": None}
-        global_step = None
+        # global_step = None
     model = load_model_from_config(config.model,
                                    pl_sd["state_dict"])
 
-    return model, global_step
+    return model
 
 
 if __name__ == "__main__":
@@ -592,8 +584,8 @@ if __name__ == "__main__":
 
     print(config)
 
-    model, global_step = load_model(config, ckpt, gpu, eval_mode)
-    print(f"global step: {global_step}")
+    model = load_model(config, ckpt, gpu, eval_mode)
+    # print(f"global step: {global_step}")
     print(75 * "=")
     print("logging to:")
     logdir = os.path.join(logdir, now + opt.post, "samples")

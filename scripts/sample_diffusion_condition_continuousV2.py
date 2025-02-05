@@ -180,12 +180,12 @@ def valset_input_construct_helper_and_sample(input_df, cond_dict, sampler, model
                                              batch_size=1,
                                              custom_steps=None,
                                              eta=1.0,
-                                             scale=1.0, scale_pro=1.0,
+                                             scale=1.0, scale_pro=1.0, tri_mode=None
                                              ):
     # sample according to each line in input_df
 
-    midvalue = [None, None,
-                3.428, 0.6266, None, 366., 68., 1.0, 4.0, 5.0
+    negvalue = [None, None,
+                4.5, 0.3, None, 450., 100, 3, 7, 7
                 ]
 
     input_property_set = []
@@ -206,7 +206,10 @@ def valset_input_construct_helper_and_sample(input_df, cond_dict, sampler, model
                        float(row["rotatable"])
                        ]
         property_set, property_set_dict = property_masker(cur_example, cond_dict, property_constrained)
-        property_set = [cond_dict["None_valid_mol"], cond_dict["matched_property"]] + property_set
+        if tri_mode:
+            property_set = [cond_dict["None_valid_mol"], cond_dict["matched_property"]] + property_set
+        else:
+            property_set = [cond_dict["valid_mol"], cond_dict["matched_property"]] + property_set
         property_set_dict = [True, True] + property_set_dict
 
         uc_list = [
@@ -225,12 +228,13 @@ def valset_input_construct_helper_and_sample(input_df, cond_dict, sampler, model
         valid_list = [cond_dict["valid_mol"]] + uc_list[1:]
         valid_list_dict = uc_list_dict
 
-        for property_set_dict_index in range(len(property_set_dict)):
-            if property_set_dict[property_set_dict_index] == False:
-                uc_list[property_set_dict_index] = midvalue[property_set_dict_index]
-                uc_list_dict[property_set_dict_index] = False
-                valid_list[property_set_dict_index] = midvalue[property_set_dict_index]
-                valid_list_dict[property_set_dict_index] = False
+        # for property_set_dict_index in range(len(property_set_dict)):
+        #     if property_set_dict[property_set_dict_index] == False:
+        #         uc_list[property_set_dict_index] = negvalue[property_set_dict_index]
+        #         uc_list_dict[property_set_dict_index] = False
+        #         if tri_mode:
+        #             valid_list[property_set_dict_index] = negvalue[property_set_dict_index]
+        #             valid_list_dict[property_set_dict_index] = False
 
         input_property_set.append(property_set)
         input_property_set_dict.append(property_set_dict)
@@ -259,18 +263,29 @@ def valset_input_construct_helper_and_sample(input_df, cond_dict, sampler, model
         valid_c = model.get_learned_conditioning(valid_input)
         property_c = model.get_learned_conditioning(condition_input)
 
-        samples_ddim, _ = sampler.sample(S=custom_steps,
-                                         batch_size=batch_size,
-                                         shape=shape,
-                                         verbose=False,
-                                         eta=eta,
-                                         triangle_sampling=True,
-                                         unconditional_conditioning=uc,
-                                         conditioning=valid_c,
-                                         property_conditioning=property_c,
-                                         unconditional_guidance_scale=scale,
-                                         property_condition_scale=scale_pro,
-                                         )
+        if tri_mode:
+            samples_ddim, _ = sampler.sample(S=custom_steps,
+                                             batch_size=batch_size,
+                                             shape=shape,
+                                             verbose=False,
+                                             eta=eta,
+                                             triangle_sampling=tri_mode,
+                                             unconditional_conditioning=uc,
+                                             conditioning=valid_c,
+                                             unconditional_guidance_scale=scale,
+                                             property_conditioning=property_c,
+                                             property_condition_scale=scale_pro,
+                                             )
+        else:
+            samples_ddim, _ = sampler.sample(S=custom_steps,
+                                             conditioning=property_c,
+                                             batch_size=batch_size,
+                                             shape=shape,
+                                             verbose=False,
+                                             unconditional_guidance_scale=scale,
+                                             unconditional_conditioning=uc,
+                                             triangle_sampling=tri_mode,
+                                             eta=eta)
 
         x_samples_ddim = model.decode_first_stage(samples_ddim)
         x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
@@ -355,7 +370,7 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
             valid_list, valid_list_dict = None, None
         property_set_dict = [True, True]
 
-        midvalue = [
+        negvalue = [
             3.428, 0.6266, None, 366., 68., 1.0, 4.0, 5.0
         ]
         cur_string = preset_str
@@ -370,11 +385,14 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
             else:
                 property_set.append(value)
                 property_set_dict.append(False)
-                uc_list[id + 2] = midvalue[id]
-                uc_list_dict[id + 2] = False
-                valid_list[id+2] = midvalue[id]
-                valid_list_dict[id+2] = False
-        print("current midvalue is setting as {}".format(valid_list_dict))
+                # uc_list[id + 2] = negvalue[id]
+                # uc_list_dict[id + 2] = False
+                # if tri_mode:
+                #     # can change to input_value
+                #     # depends on the task
+                #     valid_list[id+2] = negvalue[id]
+                #     valid_list_dict[id+2] = False
+        # print("current negvalue is setting as {}".format(valid_list_dict))
 
         print("Your Sample condition is :")
         for i in range(len(extract_string)):
@@ -407,20 +425,24 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
                 final_image_results.append(property_set[2:] + property_set_dict[2:] + [path])
 
     elif condition_type == "mol_various_validation_from_dataset":
-        training_path = "training_csv_path.csv"
-        training_dataset = pd.read_csv(training_path)
-        training_dataset = training_dataset.sample(n=200000)
-        training_dataset.reset_index(drop=True, inplace=True)
+        evaluation_path = "select_csv_path.csv"
+        evaluation_dataset = pd.read_csv(evaluation_path)
+        # evaluation_dataset = evaluation_dataset[evaluation_dataset["MolWt_label_continuous"] > 350]
+        # evaluation_dataset = evaluation_dataset[evaluation_dataset["MolWt_label_continuous"] > 300]
+        # evaluation_dataset = evaluation_dataset[evaluation_dataset["MolWt_label_continuous"] > 250]
+        # evaluation_dataset.reset_index(drop=True, inplace=True)
+        evaluation_dataset = evaluation_dataset.sample(n=10000)
+        evaluation_dataset.reset_index(drop=True, inplace=True)
 
-        assert len(training_dataset)%conditional_count == 0, "please make sure data can be divided by conditional_count"
+        assert len(evaluation_dataset)%conditional_count == 0, "please make sure data can be divided by conditional_count"
 
-        for i in trange(int(len(training_dataset)/conditional_count), desc="Sampling Batches (conditional)"):
-            cur_batch = training_dataset[i*conditional_count:(i+1)*conditional_count]
+        for i in trange(int(len(evaluation_dataset)/conditional_count), desc="Sampling Batches (conditional)"):
+            cur_batch = evaluation_dataset[i*conditional_count:(i+1)*conditional_count]
             logs, property_set, property_set_dict = valset_input_construct_helper_and_sample(cur_batch, cond_dict, sampler, model, property_constrained=property_constrained,
                                              batch_size=conditional_count,
                                              custom_steps=custom_steps,
                                              eta=eta,
-                                             scale=scale, scale_pro=scale_pro,
+                                             scale=scale, scale_pro=scale_pro, tri_mode=tri_mode
                                              )
 
             cur_batch_index = 0
@@ -468,7 +490,7 @@ def get_parser():
         type=int,
         nargs="?",
         help="number of each smiles to draw",
-        default=10
+        default=5
     )
     parser.add_argument(
         "-e",
@@ -523,8 +545,6 @@ def get_parser():
         "--condition_type",
         type=str,
         default="mol_various_preset",
-        # mol_various_validation_from_dataset
-        # mol_various_preset,
     )
     parser.add_argument(
         "-p",
@@ -533,7 +553,7 @@ def get_parser():
         default="",
     )
     parser.add_argument(
-        "--proerty_num",
+        "--property_num",
         type=int,
         default=2,
     )
@@ -558,14 +578,14 @@ def load_model(config, ckpt, gpu, eval_mode):
     if ckpt:
         print(f"Loading model from {ckpt}")
         pl_sd = torch.load(ckpt, map_location="cpu")
-        global_step = pl_sd["global_step"]
+        # global_step = pl_sd["global_step"]
     else:
         pl_sd = {"state_dict": None}
-        global_step = None
+        # global_step = None
     model = load_model_from_config(config.model,
                                    pl_sd["state_dict"])
 
-    return model, global_step
+    return model
 
 
 if __name__ == "__main__":
@@ -614,8 +634,7 @@ if __name__ == "__main__":
 
     print(config)
 
-    model, global_step = load_model(config, ckpt, gpu, eval_mode)
-    print(f"global step: {global_step}")
+    model = load_model(config, ckpt, gpu, eval_mode)
     print(75 * "=")
     print("logging to:")
     logdir = os.path.join(logdir, now + opt.post, "samples")
@@ -640,5 +659,5 @@ if __name__ == "__main__":
         conditional_count=opt.conditional_count,
         condition_type=opt.condition_type,
         preset_str=opt.preset_str,
-        property_constrained=opt.proerty_num,
+        property_constrained=opt.property_num,
         tri_mode=opt.tri,)

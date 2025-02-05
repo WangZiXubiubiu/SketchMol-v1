@@ -87,6 +87,5 @@ lightning:
         increase_log_steps: False
 
   trainer:
-    benchmark: True
     limit_val_batches: 0.1
 

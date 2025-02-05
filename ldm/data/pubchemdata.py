@@ -51,10 +51,6 @@ class pubchemBase(Dataset):
                 available_pool.append(example["file_path_oriimage"])
                 if not pd.isna(example["file_path_scalimage"]):
                     available_pool.append(example["file_path_scalimage"])
-                    if int(example["file_path_sidechainnumber"]) > 0:
-                        sidechain_path = example["file_path_sidechainpath"].split(",")
-                        for sidechain_index in range(int(example["sidechain_number"])):
-                            available_pool.append(sidechain_path[sidechain_index])
         except:
             pass
         cur_img_path = random.choice(available_pool)
@@ -62,7 +58,6 @@ class pubchemBase(Dataset):
         if not image.mode == "RGB":
             image = image.convert("RGB")
 
-        # default to score-sde preprocessing
         img = np.array(image).astype(np.uint8)
         crop = min(img.shape[0], img.shape[1])
         h, w, = img.shape[0], img.shape[1]
@@ -131,7 +126,7 @@ class pubchemBase_RL(Dataset):
         # invalid molecule
         # Can this kind of invalid data protect the integrity of the image?
         if self.invalid_mode and random.random() < 0.3:
-            if self.sampled_invalid_image_path is not None and random.random() < 0.7:
+            if self.sampled_invalid_image_path is not None and random.random() < 0.5:
                 image = Image.open(random.choice(self.sampled_invalid_image))
             else:
                 image = Image.open(random.choice(example["Invalid_Image_pool"].split(",")))
@@ -167,12 +162,16 @@ class pubchemBase_various_continuousV2(Dataset):
                  interpolation="bicubic",
                  invalid_mode=False,
                  sampled_invalid_image_path=None,
-                 target_column=None,
-                 rediscovery_mode=False
+                 sampled_expand_image_path=None,
+                 target_column=None
                  ):
         self.data_paths = csv_file
         self.sampled_invalid_image_path = sampled_invalid_image_path
         self.data_csv = pd.read_csv(self.data_paths)
+
+        if target_column is not None:
+            self.data_csv = self.data_csv[self.data_csv[target_column].notnull()]
+            self.data_csv = self.data_csv.reset_index(drop=True)
 
         self.invalid_mode = invalid_mode
         if self.invalid_mode:
@@ -210,6 +209,13 @@ class pubchemBase_various_continuousV2(Dataset):
                 "rotatable": self.data_csv["rotatable"]
             }
         self._length = len(self.data_csv)
+
+        self.sampled_expand_image_path = sampled_expand_image_path
+        if sampled_expand_image_path is not None:
+            # data augmentation
+            self.sampled_expand_image = pd.read_csv(sampled_expand_image_path)
+            self.sampled_expand_image_len = len(self.sampled_expand_image)
+            print("sampled_expand_image_len: ", self.sampled_expand_image_len)
 
         self._cond_dict()
         self.property_interval_dict = self.property_interval_determine(self.labels)
@@ -329,7 +335,7 @@ class pubchemBase_various_continuousV2(Dataset):
         return output_list, output_list_from_dict
 
     @staticmethod
-    def lets_mutate(property_range_start, property_range_end, cur_property, rejection_scale=0.2):
+    def lets_mutate(property_range_start, property_range_end, cur_property, rejection_scale=0.4):
         property_range_len = abs(property_range_end - property_range_start)
         rejection_interval_start = cur_property - rejection_scale * property_range_len
         rejection_interval_end = cur_property + rejection_scale * property_range_len
@@ -376,7 +382,7 @@ class pubchemBase_various_continuousV2(Dataset):
         if self.invalid_mode:
             # three type of data construction
             # 30% random invalid images from Invalid_Image_pool
-            # 70% random valid images from file_path_canimage/file_path_oriimage with its properties
+            # 70% random valid images
             cur_dice = random.random()
 
             none_property_list = [self.cond_dict["None_logp"],
@@ -391,17 +397,14 @@ class pubchemBase_various_continuousV2(Dataset):
             none_property_from_dict = [True] * len(none_property_list)
             if cur_dice < 0.3:
                 invalid_from_where_dice = random.random()
-                # 20% random invalid images from Invalid_Image_pool   1:1:8 if resampled stage else 1:1:0
-                if self.sampled_invalid_image_path is None or invalid_from_where_dice < 0.3:
-                    if random.random() < 0.5:
-                        # invalid mode1: random invalid mol images
+                if self.sampled_invalid_image_path is None or invalid_from_where_dice < 0.5:
+                    if random.random() < 0.9:
                         cur_img_path = random.choice(example["Invalid_Image_pool"].split(","))
                         list_for_property_condition = [self.cond_dict["invalid_mol"],
                                                        self.cond_dict["None_property"]
                                                        ] + none_property_list
                         list_for_whether_property_from_dict = [True, True] + none_property_from_dict
                     else:
-                        # invalid mode2: images with unmatched properties
                         available_pool = [example["file_path_canimage"]]
                         if not pd.isna(example["file_path_oriimage"]):
                             available_pool.append(example["file_path_oriimage"])
@@ -409,21 +412,18 @@ class pubchemBase_various_continuousV2(Dataset):
                         cur_property_list, cur_property_list_dict = self.sampleproperty_to_list(example,
                                                                                                 self.cond_dict,
                                                                                                 mask_mode=True)
-                        # print("original_property_list: ", original_property_list)
                         mutate_property_list = self.property_mutate_helper(cur_property_list,
                                                                            cur_property_list_dict,
                                                                            self.property_interval_dict)
-                        list_for_property_condition = [self.cond_dict["valid_mol"],
+                        list_for_property_condition = [self.cond_dict["None_valid_mol"],
                                                        self.cond_dict["unmatched_property"]
                                                        ] + mutate_property_list
                         list_for_whether_property_from_dict = [True, True] + cur_property_list_dict
                 else:
-                    # invalid mode3: images generated from model itself
-                    # the following setting depends on the invalid image type
-                    # mainly two types 1. totally invalid molecular images
-                    # 2. valid molecular images with invalid properties
-                    # not used during the first training stage
-                    # this label come from low_quality_image_various_conditions.py
+                    # It is not difficult for image models to understand the properties,
+                    # so the core issue is how to generate valid molecular images.
+                    # generated invalid rate: 95%
+                    # unmatched: 5%
                     temp_index = random.randint(0, self.sampled_invalid_image_len - 1)
                     temp_example = self.sampled_invalid_image.loc[temp_index, :]
                     cur_img_path = temp_example["image_path"]
@@ -449,17 +449,40 @@ class pubchemBase_various_continuousV2(Dataset):
                     list_for_property_condition = prefix + list_for_property_condition
                     list_for_whether_property_from_dict = [True, True] + list_for_whether_property_from_dict
             else:
-                # 70% random valid images from file_path_canimage/file_path_oriimage with its properties
-                available_pool = [example["file_path_canimage"]]
-                if not pd.isna(example["file_path_oriimage"]):
-                    available_pool.append(example["file_path_oriimage"])
-                cur_img_path = random.choice(available_pool)
-                cur_property_list, cur_property_list_dict = self.sampleproperty_to_list(example, self.cond_dict,
-                                                                                        mask_mode=True)
-                list_for_property_condition = [self.cond_dict["valid_mol"],
-                                               self.cond_dict["matched_property"]
-                                               ] + cur_property_list
-                list_for_whether_property_from_dict = [True, True] + cur_property_list_dict
+                if self.sampled_expand_image_path is not None and random.random() < min(self.sampled_expand_image_len/(self._length + self.sampled_expand_image_len), 0.5):
+                    temp_index = random.randint(0, self.sampled_expand_image_len - 1)
+                    temp_example = self.sampled_expand_image.loc[temp_index, :]
+                    example["Logp"] = temp_example["aLogP_label_continuous"]
+                    example["QED"] = temp_example["QED_label_continuous"]
+                    example["SA"] = temp_example["SAscore_label_continuous"]
+                    example["MolWt"] = temp_example["MolWt_label_continuous"]
+                    example["TPSA"] = temp_example["TPSA_label_continuous"]
+                    example["HBD"] = temp_example["HBD"]
+                    example["HBA"] = temp_example["HBA"]
+                    example["rotatable"] = temp_example["rotatable"]
+                    cur_img_path = temp_example["image_path"]
+                    cur_property_list, cur_property_list_dict = self.sampleproperty_to_list(example,
+                                                                                            self.cond_dict,
+                                                                                            mask_mode=True)
+                    mutate_property_list = self.property_mutate_helper(cur_property_list,
+                                                                       cur_property_list_dict,
+                                                                       self.property_interval_dict)
+                    list_for_property_condition = [self.cond_dict["valid_mol"],
+                                                   self.cond_dict["matched_property"]
+                                                   ] + mutate_property_list
+                    list_for_whether_property_from_dict = [True, True] + cur_property_list_dict
+                else:
+                    available_pool = [example["file_path_canimage"]]
+                    if not pd.isna(example["file_path_oriimage"]):
+                        available_pool.append(example["file_path_oriimage"])
+                    cur_img_path = random.choice(available_pool)
+
+                    cur_property_list, cur_property_list_dict = self.sampleproperty_to_list(example, self.cond_dict,
+                                                                                                mask_mode=True)
+                    list_for_property_condition = [self.cond_dict["valid_mol"],
+                                                   self.cond_dict["matched_property"]
+                                                   ] + cur_property_list
+                    list_for_whether_property_from_dict = [True, True] + cur_property_list_dict
         else:
             cur_img_path = example["file_path_canimage"]
             cur_property_list, cur_property_list_dict = self.sampleproperty_to_list(example, self.cond_dict,
@@ -515,7 +538,6 @@ class pubchemBase_single_protein(pubchemBase_various_continuousV2):
                  invalid_mode=False,
                  sampled_invalid_image_path=None,
                  sampled_expand_image_path=None,
-                 rediscovery_mode=False,
                  ):
         protein_support_pool = ["AKT1", "EP4", "ROCK1"]
         assert target_protein is not None, "target protein should be specified"
@@ -524,16 +546,9 @@ class pubchemBase_single_protein(pubchemBase_various_continuousV2):
         self.target_protein = target_protein
         super(pubchemBase_single_protein, self).__init__(csv_file, size, interpolation, invalid_mode,
                                                   sampled_invalid_image_path, target_column=target_protein+"_activity",
-                                                  rediscovery_mode=rediscovery_mode)
+                                                  sampled_expand_image_path=sampled_expand_image_path)
 
         self.labels[target_protein+"_activity"] = self.data_csv[target_protein+"_activity"] if (target_protein+"_activity") in self.data_csv.columns else [None] * self._length
-        
-        self.sampled_expand_image_path = sampled_expand_image_path
-        if sampled_expand_image_path is not None:
-            # data augmentation
-            self.sampled_expand_image = pd.read_csv(sampled_expand_image_path)
-            self.sampled_expand_image_len = len(self.sampled_expand_image)
-            print("sampled_expand_image_len: ", self.sampled_expand_image_len)
 
     @staticmethod
     def build_dict():
@@ -616,7 +631,7 @@ class pubchemBase_single_protein(pubchemBase_various_continuousV2):
             none_protein_from_dict = [True] * len(none_protein_list)
             if cur_dice < 0.3:
                 invalid_from_where_dice = random.random()
-                if self.sampled_invalid_image_path is None or invalid_from_where_dice < 0.1:
+                if self.sampled_invalid_image_path is None or invalid_from_where_dice < 0.5:
                     # invalid mode1: random invalid mol images
                     cur_img_path = random.choice(example["Invalid_Image_pool"].split(","))
                     list_for_property_condition = [self.cond_dict["invalid_mol"],
@@ -630,7 +645,10 @@ class pubchemBase_single_protein(pubchemBase_various_continuousV2):
                     # invalid mode: images generated from model itself
                     # the following setting depends on the invalid image type
                     # mainly two types 1. totally invalid molecular images
-                    # 2. valid molecular images with invalid properties/proteins
+                    # 2. valid molecular images with wrong proteins
+                    # The purpose of this section is to enable the model to transfer from PubChem molecules
+                    # to ChEMBL molecules. Therefore, 90% of the problematic images are molecules
+                    # that the classification model has judged to have low activity.
 
                     temp_index = random.randint(0, self.sampled_invalid_image_len - 1)
                     temp_example = self.sampled_invalid_image.loc[temp_index, :]
@@ -655,21 +673,17 @@ class pubchemBase_single_protein(pubchemBase_various_continuousV2):
                     if int(temp_example["property_match"]) == self.cond_dict["None_property"]:
                         prefix = [self.cond_dict["invalid_mol"], self.cond_dict["None_property"]]
                         midfix = [self.cond_dict["None_protein"]]
-                    elif int(temp_example["property_match"]) == self.cond_dict["unmatched_property"]:
-                        prefix = [self.cond_dict["None_valid_mol"], self.cond_dict["unmatched_property"]]
-                        midfix = [self.cond_dict["None_protein"]]
                     elif int(temp_example["protein_match"]) == self.cond_dict["unmatched_protein"]:
                         prefix = [self.cond_dict["None_valid_mol"], self.cond_dict["None_property"]]
                         midfix = [self.cond_dict["unmatched_protein"]]
                     else:
-                        print("Invalid property_match value: ", temp_example["property_match"])
+                        # print("Invalid property_match value: ", temp_example["property_match"])
                         raise ValueError("Invalid property_match value: ", temp_example["property_match"])
                     list_for_property_condition = prefix + list_for_property_condition + \
                                                   midfix + list_for_protein_condition
                     list_for_whether_property_from_dict = [True, True] + list_for_whether_property_from_dict + \
                                                           [True] + list_for_whether_protein_from_dict
             else:
-                # 60% random valid images from file_path_canimage/file_path_oriimage with its properties
                 available_pool = [example["file_path_canimage"]]
                 if not pd.isna(example["file_path_oriimage"]):
                     available_pool.append(example["file_path_oriimage"])
@@ -697,7 +711,7 @@ class pubchemBase_single_protein(pubchemBase_various_continuousV2):
                     list_for_protein_condition = [temp_example[self.target_protein+"_label"] if random.random()>0.2 else self.cond_dict["None_{}".format(self.target_protein)] ]
                     list_for_whether_protein_from_dict = [True]
 
-                    prefix = [self.cond_dict["None_valid_mol"], self.cond_dict["None_property"]]
+                    prefix = [self.cond_dict["None_valid_mol"], self.cond_dict["matched_property"]]
                     midfix = [self.cond_dict["matched_protein"]]
 
                     list_for_property_condition = prefix + list_for_property_condition + \
@@ -706,11 +720,11 @@ class pubchemBase_single_protein(pubchemBase_various_continuousV2):
                                                           [True] + list_for_whether_protein_from_dict
                 else:
                     cur_property_list, cur_property_list_dict = self.sampleproperty_to_list(example, self.cond_dict,
-                                                                                            mask_mode=True)
+                                                                                            all_mask_mode=True)
 
                     cur_protein_list, cur_protein_list_dict = self.sample_protein_to_list(example, self.target_protein,
                                                                                             self.cond_dict,
-                                                                                            mask_mode=True)
+                                                                                            mask_mode=False)
                     list_for_property_condition = [self.cond_dict["valid_mol"],
                                                    self.cond_dict["matched_property"]
                                                    ] + cur_property_list + cur_protein_list
@@ -722,7 +736,7 @@ class pubchemBase_single_protein(pubchemBase_various_continuousV2):
                                                                                     all_mask_mode=True)
             cur_protein_list, cur_protein_list_dict = self.sample_protein_to_list(example, self.target_protein,
                                                                                     self.cond_dict,
-                                                                                    mask_mode=True)
+                                                                                    mask_mode=False)
             list_for_property_condition = [self.cond_dict["valid_mol"],
                                            self.cond_dict["None_property"]
                                            ] + cur_property_list + cur_protein_list
@@ -782,34 +796,34 @@ class pubchem400wValidation(pubchemBase):
 
 class pubchem400wTrain_RL(pubchemBase_RL):
     def __init__(self, flip_p=0., **kwargs):
-        super().__init__(csv_file="/your_path/mini_dataset_train.csv",
+        super().__init__(csv_file="/your_path/your_csv.csv",
                          **kwargs)
 
 
 class pubchem400wValidation_RL(pubchemBase_RL):
     def __init__(self, flip_p=0., **kwargs):
-        super().__init__(csv_file="/your_path/mini_dataset_train.csv",
+        super().__init__(csv_file="/your_path/your_csv.csv",
                           **kwargs)
 
 
 class pubchem400wTrain_various_continuousV2(pubchemBase_various_continuousV2):
     def __init__(self, **kwargs):
-        super().__init__(csv_file="/your_path/pubchem_400w_train.csv",
+        super().__init__(csv_file="/your_path/your_csv.csv",
                          invalid_mode=True, **kwargs)
 
 
 class pubchem400wValidation_various_continuousV2(pubchemBase_various_continuousV2):
     def __init__(self, **kwargs):
-        super().__init__(csv_file="/your_path/pubchem_400w_val.csv",
+        super().__init__(csv_file="/your_path/your_csv.csv",
                          **kwargs)
 
 # protein
 class pubchem400wTrain_single_protein(pubchemBase_single_protein):
     def __init__(self, **kwargs):
-        super().__init__(csv_file="/your_path/actives.csv",
+        super().__init__(csv_file="/your_path/your_csv.csv",
                         invalid_mode=True, **kwargs)
 
 class pubchem400wValidation_single_protein(pubchemBase_single_protein):
     def __init__(self, **kwargs):
-        super().__init__(csv_file="/your_path/actives.csv",
+        super().__init__(csv_file="/your_path/your_csv.csv",
                          **kwargs)
