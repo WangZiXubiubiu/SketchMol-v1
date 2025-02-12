@@ -371,7 +371,7 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
         property_set_dict = [True, True]
 
         negvalue = [
-            3.428, 0.6266, None, 366., 68., 1.0, 4.0, 5.0
+            3.428, 0.6266, None, 300., 68., 0.0, 1.0, 1.0
         ]
         cur_string = preset_str
         assert cur_string != "", "please clarify your input"
@@ -393,6 +393,16 @@ def run(model, imglogdir=None, logdir=None, vanilla=False, custom_steps=None, et
                 #     valid_list[id+2] = negvalue[id]
                 #     valid_list_dict[id+2] = False
         # print("current negvalue is setting as {}".format(valid_list_dict))
+
+        # you can give a neg direction like this:
+        #   uc_list[3 + 2] = negvalue[3]
+        #   uc_list[5 + 2] = negvalue[5]
+        #   uc_list[6 + 2] = negvalue[6]
+        #   uc_list[7 + 2] = negvalue[7]
+        #   uc_list_dict[3 + 2] = False
+        #   uc_list_dict[5 + 2] = False
+        #   uc_list_dict[6 + 2] = False
+        #   uc_list_dict[7 + 2] = False
 
         print("Your Sample condition is :")
         for i in range(len(extract_string)):
