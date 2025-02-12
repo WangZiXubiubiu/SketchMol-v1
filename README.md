@@ -44,7 +44,7 @@ For target fine-tuning: I saved over 90% of the images that failed to satisfy th
 ### Stage3.3: Adjust the diffusion model.
  ### Stage3.4: Repeat the above process 1-2 times. 
  ### Sample some examples. When training on your own dataset, remember to adjust the input regular expression according to your new labels. 
-#### Sample from single physicochemical property (Supports up to 7 attributes LogP, QED, MW, TPSA, HBD, HBA, RB). The following is an example of sampling molecular images with a molecular weight of 400. You can download the pretrained model from [here](https://drive.google.com/drive/folders/1wzygB1gwaMgSJCnLuzBEzbePcGwTWz-).
+#### Sample from single physicochemical property (Supports up to 7 attributes LogP, QED, MW, TPSA, HBD, HBA, RB). The following is an example of sampling molecular images with a molecular weight of 400. You can download the pretrained model from [here](https://drive.google.com/drive/folders/1wzygB1gwaMgSJCnLuzBEzbePcGwTWz-t?usp=drive_link).
 	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/sample_diffusion_condition_continuousV2.py --scale 1.2 --scale_pro 6.3 --post mw_400 -p "MW:400" -r /path/diffusion_model.ckpt
  	CUDA_VISIBLE_DEVICES=<gpu_ids> python scripts/sample_diffusion_condition_continuousV2.py --scale 4.5 --tri false --post mw_400 -p "MW:400" -r /path/diffusion_model.ckpt
 #### Sample from multi physicochemical properties. The following is an example of sampling molecular images with MW=330, HBD=1 & HBA=4. 
