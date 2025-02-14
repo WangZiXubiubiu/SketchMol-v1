@@ -7,7 +7,7 @@ import pandas as pd
 
 def property_interval_determine():
     logp_interval = {"min": -2, "max": 7}
-    qed_interval = {"min": 0.15, "max": 1}
+    qed_interval = {"min": 0., "max": 1}
     sa_interval = {"min": 1.5, "max": 4}
     molwt_interval = {"min": 150, "max": 600}
     tpsa_interval = {"min": 0, "max": 150}

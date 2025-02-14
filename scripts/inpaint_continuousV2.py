@@ -167,29 +167,6 @@ def make_batch(input_image_path, batch_size, mask_shape, device="cuda", mask_fro
     return batch
 
 
-
-def property_interval_determine():
-    logp_interval = {"min": -2, "max": 7}
-    qed_interval = {"min": 0.15, "max": 1}
-    sa_interval = {"min": 1.5, "max": 4}
-    molwt_interval = {"min": 50, "max": 600}
-    tpsa_interval = {"min": 0, "max": 150}
-    hbd_interval = {"min": 0, "max": 5}
-    hba_interval = {"min": 0, "max":10}
-    rotatable_interval = {"min": 0, "max": 10}
-
-    property_interval_dict = {"Logp": logp_interval,
-                              "QED": qed_interval,
-                              "SA": sa_interval,
-                              "MolWt": molwt_interval,
-                              "TPSA": tpsa_interval,
-                              "HBD": hbd_interval,
-                              "HBA": hba_interval,
-                              "rotatable": rotatable_interval
-                              }
-    return property_interval_dict
-
-
 def extract_values(keywords, sequence):
     values = []
 
